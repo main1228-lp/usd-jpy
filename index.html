@@ -43,4 +43,43 @@
         <h1>USD/JPY テクニカル分析ダッシュボード</h1>
         <div class="sub">直近5日分のローソク足 / MACD / ボリンジャーバンド / 本日の重要経済指標</div>
       </div>
-      <div 
+      <div class="pills">
+        <div class="pill">Vercel Ready</div>
+        <div class="pill">15秒/60秒更新</div>
+        <div class="pill">iPhone対応</div>
+      </div>
+    </div>
+
+    <div class="summary">
+      <div class="card"><div class="label">現在レート</div><div class="value" id="currentRate">--</div><div class="small">USD/JPY</div></div>
+      <div class="card"><div class="label">前日比</div><div class="value" id="dayChange">--</div><div class="small" id="dayChangePct">--</div></div>
+      <div class="card"><div class="label">RSI(14)</div><div class="value" id="rsiVal">--</div><div class="small" id="rsiText">--</div></div>
+      <div class="card"><div class="label">判定</div><div class="value" style="font-size:16px;margin-bottom:2px" id="biasText">--</div><div class="small">MA / MACD / RSI を加味した簡易判定</div></div>
+    </div>
+
+    <div class="card panel" style="margin-bottom:12px">
+      <h2>ローソク足 + MA + BOLLINGER + 20PIPSゾーン</h2>
+      <div class="chartbox"><canvas id="priceChart"></canvas></div>
+    </div>
+
+    <div class="card panel" style="margin-bottom:12px">
+      <h2>MACD</h2>
+      <div class="chartbox sm"><canvas id="macdChart"></canvas></div>
+    </div>
+
+    <div class="grid1">
+      <div class="card panel"><h2>主要サポート</h2><div class="value" style="font-size:20px" id="supportText">--</div><div class="small">主要押し目候補</div></div>
+      <div class="card panel"><h2>主要レジスタンス</h2><div class="value" style="font-size:20px" id="resistanceText">--</div><div class="small">主要戻り売り候補</div></div>
+    </div>
+
+    <div class="card panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <h2 style="margin:0">本日の重要指標</h2>
+        <div class="pill">★★★ only</div>
+      </div>
+      <div style="height:180px"></div>
+    </div>
+  </div>
+  <script src="./app.js" defer></script>
+</body>
+</html>
