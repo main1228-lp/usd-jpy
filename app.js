@@ -1,11 +1,4 @@
-const state = {
-  charts: { price: null, macd: null },
-  lastRate: null,
-  lastEvents: [],
-  busyRate: false,
-  busyEvents: false,
-  timers: { rate: null, events: null }
-};
+const state = { charts: { price: null, macd: null }, lastRate: null, timers: { rate: null } };
 
 const el = {
   currentRate: document.getElementById('currentRate'),
@@ -16,11 +9,11 @@ const el = {
   biasText: document.getElementById('biasText'),
   supportText: document.getElementById('supportText'),
   resistanceText: document.getElementById('resistanceText'),
-  eventList: document.getElementById('eventList'),
   priceChart: document.getElementById('priceChart'),
   macdChart: document.getElementById('macdChart')
 };
 
+const fmt = n => Number(n).toFixed(3);
 const ma = (arr, n) => arr.map((_, i) => i < n - 1 ? null : +(arr.slice(i - n + 1, i + 1).reduce((a, b) => a + b, 0) / n).toFixed(3));
 const ema = (arr, n) => {
   const k = 2 / (n + 1), out = [arr[0]];
@@ -48,11 +41,7 @@ const calcBollinger = (close, period = 20, mult = 2) => {
     const v = close.slice(i - period + 1, i + 1), m = v.reduce((a, b) => a + b, 0) / period;
     return Math.sqrt(v.reduce((a, b) => a + Math.pow(b - m, 2), 0) / period);
   });
-  return {
-    mid,
-    up: close.map((_, i) => std[i] == null ? null : +(mid[i] + mult * std[i]).toFixed(3)),
-    low: close.map((_, i) => std[i] == null ? null : +(mid[i] - mult * std[i]).toFixed(3))
-  };
+  return { mid, up: close.map((_, i) => std[i] == null ? null : +(mid[i] + mult * std[i]).toFixed(3)), low: close.map((_, i) => std[i] == null ? null : +(mid[i] - mult * std[i]).toFixed(3)) };
 };
 const calcMACD = close => {
   const ema12 = ema(close, 12), ema26 = ema(close, 26);
@@ -76,227 +65,86 @@ function buildFallbackCandles(rate) {
   return out;
 }
 
-async function fetchFXRate() {
-  const res = await fetch('/api/rate', { cache: 'no-store' });
-  if (!res.ok) throw new Error(`FX API ${res.status}`);
-  const json = await res.json();
-  const rate = json?.rate;
-  if (!rate) throw new Error('JPY rate missing');
-  return rate;
+async function fetchRate() {
+  const r = await fetch('/api/rate', { cache: 'no-store' });
+  if (!r.ok) throw new Error(`rate api ${r.status}`);
+  return r.json();
 }
 
-async function fetchEconomicCalendar() {
-  const res = await fetch('/api/calendar', { cache: 'no-store' });
-  if (!res.ok) throw new Error(`ECON API ${res.status}`);
-  const json = await res.json();
-  const todayJST = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' });
-
-  return json
-    .filter(e => {
-      const c = e.Country || e.country;
-      const imp = e.Importance || e.importance || e.economicImpact;
-      const dt = e.Date || e.date || e.datetime;
-      if (!(c === 'United States' || c === 'Japan')) return false;
-      if (Number(imp) !== 3) return false;
-      if (!dt) return false;
-      return new Date(dt).toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' }) === todayJST;
-    })
-    .map(e => {
-      const country = (e.Country || e.country) === 'United States' ? 'US' : 'JP';
-      const dt = e.Date || e.date || e.datetime;
-      const name = e.Event || e.event || e.report_name || 'Economic Event';
-      return {
-        time: dt ? new Date(dt).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }) : '--:--',
-        country,
-        name,
-        note: (e.Forecast || e.forecast) ? `予想: ${e.Forecast || e.forecast}` : '',
-        cls: country === 'US' ? 'usd' : 'jpy'
-      };
-    })
-    .sort((a, b) => a.time.localeCompare(b.time));
-}
-
-function renderEvents(events) {
-  if (!events.length) {
-    el.eventList.innerHTML = '<div class="small">本日の高重要度イベントは取得できませんでした。</div>';
-    return;
-  }
-  el.eventList.innerHTML = events.map(e => `
-    <div class="event">
-      <div class="event-top">
-        <div>
-          <div class="time">${e.time}</div>
-          <div class="country">${e.country}</div>
-        </div>
-        <div class="impact ${e.cls}">★★★</div>
-      </div>
-      <div class="event-name">${e.name}</div>
-      <div class="event-note">${e.note || ''}</div>
-    </div>
-  `).join('');
-}
-
-function updateKpis(candles, rsi, macd, signal) {
+function buildCharts(rate) {
+  const candles = buildFallbackCandles(rate);
   const close = candles.map(d => d.c);
-  const current = close[close.length - 1];
-  const prev = close[close.length - 2];
-  const chg = +(current - prev).toFixed(3);
-  const chgPct = +((chg / prev) * 100).toFixed(2);
-  const rsiLast = rsi[rsi.length - 1];
-  const ma25 = ma(close, 25);
-  const bias = (current > (ma25[ma25.length - 1] || current) && macd[macd.length - 1] > signal[signal.length - 1] && rsiLast >= 50)
-    ? 'ロング優勢'
-    : 'ショート優勢';
-
-  el.currentRate.textContent = current.toFixed(3);
-  el.dayChange.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(3);
-  el.dayChange.style.color = chg >= 0 ? 'var(--up)' : 'var(--down)';
-  el.dayChangePct.textContent = (chgPct >= 0 ? '+' : '') + chgPct.toFixed(2) + '%';
-  el.dayChangePct.style.color = chg >= 0 ? 'var(--up)' : 'var(--down)';
-  el.rsiVal.textContent = rsiLast.toFixed(1);
-  el.rsiText.textContent = rsiLast >= 70 ? '買われすぎ' : rsiLast <= 30 ? '売られすぎ' : '中立';
-  el.biasText.innerHTML = `<span class="badge ${bias.includes('ショート') ? 'short' : ''}">${bias}</span>`;
-  el.supportText.textContent = [(current - 0.10).toFixed(3), (current - 0.25).toFixed(3), (current - 0.45).toFixed(3)].join(' / ');
-  el.resistanceText.textContent = [(current + 0.10).toFixed(3), (current + 0.25).toFixed(3), (current + 0.45).toFixed(3)].join(' / ');
-}
-
-function buildCharts(candles) {
-  const labels = candles.map(d => d.x);
-  const close = candles.map(d => d.c);
-  const ma5 = ma(close, 5);
-  const ma25 = ma(close, 25);
-  const ma75 = ma(close, 75);
-  const ma200 = ma(close, 200);
-  const rsi = calcRSI(close, 14);
+  const ma5 = ma(close, 5), ma25 = ma(close, 25), ma75 = ma(close, 15), ma200 = ma(close, 20);
   const bb = calcBollinger(close, 20, 2);
-  const { macd, signal, hist } = calcMACD(close);
-  const zoneLow = close[close.length - 1] - 0.10;
-  const zoneHigh = close[close.length - 1] + 0.10;
+  const rsi = calcRSI(close, 14);
+  const macd = calcMACD(close);
+  const latest = close.at(-1), prev = close.at(-2);
+  const bias = latest >= prev ? 'ロング優勢' : 'ショート優勢';
+  const biasClass = latest >= prev ? 'badge' : 'badge short';
+  const change = latest - prev;
+  const pct = (change / prev) * 100;
 
-  state.charts.price?.destroy();
-  state.charts.macd?.destroy();
+  el.currentRate.textContent = fmt(latest);
+  el.dayChange.textContent = `${change >= 0 ? '+' : ''}${fmt(change)}`;
+  el.dayChangePct.textContent = `${change >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+  el.rsiVal.textContent = rsi.at(-1)?.toFixed(1) ?? '--';
+  el.rsiText.textContent = (rsi.at(-1) >= 70) ? '買われすぎ' : (rsi.at(-1) <= 30 ? '売られすぎ' : '中立');
+  el.biasText.innerHTML = `<span class='${biasClass}'>${bias}</span>`;
 
-  state.charts.price = new Chart(el.priceChart, {
-    type: 'candlestick',
+  const support = Math.min(...close.slice(-10)) - 0.05;
+  const resistance = Math.max(...close.slice(-10)) + 0.05;
+  el.supportText.textContent = fmt(support);
+  el.resistanceText.textContent = fmt(resistance);
+
+  if (state.charts.price) state.charts.price.destroy();
+  if (state.charts.macd) state.charts.macd.destroy();
+
+  state.charts.price = new Chart(el.priceChart.getContext('2d'), {
+    type: 'line',
     data: {
+      labels: candles.map(d => d.x),
       datasets: [
-        { label: 'USD/JPY', data: candles, color: { up: '#22c55e', down: '#ef4444', unchanged: '#94a3b8' }, borderColor: { up: '#22c55e', down: '#ef4444', unchanged: '#94a3b8' } },
-        { type: 'line', label: '5MA', data: ma5.map((v, i) => ({ x: labels[i], y: v })).filter(d => d.y != null), borderColor: '#60a5fa', pointRadius: 0, tension: .25, spanGaps: true },
-        { type: 'line', label: '25MA', data: ma25.map((v, i) => ({ x: labels[i], y: v })).filter(d => d.y != null), borderColor: '#f59e0b', pointRadius: 0, tension: .25, spanGaps: true },
-        { type: 'line', label: '75MA', data: ma75.map((v, i) => ({ x: labels[i], y: v })).filter(d => d.y != null), borderColor: '#22c55e', pointRadius: 0, tension: .25, spanGaps: true },
-        { type: 'line', label: '200MA', data: ma200.map((v, i) => ({ x: labels[i], y: v })).filter(d => d.y != null), borderColor: '#e879f9', pointRadius: 0, tension: .25, spanGaps: true },
-        { type: 'line', label: 'BB上限', data: bb.up.map((v, i) => ({ x: labels[i], y: v })).filter(d => d.y != null), borderColor: 'rgba(168,85,247,.95)', pointRadius: 0, borderDash: [6, 4], tension: .2, spanGaps: true },
-        { type: 'line', label: 'BB中心', data: bb.mid.map((v, i) => ({ x: labels[i], y: v })).filter(d => d.y != null), borderColor: 'rgba(168,85,247,.55)', pointRadius: 0, borderDash: [3, 4], tension: .2, spanGaps: true },
-        { type: 'line', label: 'BB下限', data: bb.low.map((v, i) => ({ x: labels[i], y: v })).filter(d => d.y != null), borderColor: 'rgba(168,85,247,.95)', pointRadius: 0, borderDash: [6, 4], tension: .2, spanGaps: true }
+        { label: 'Close', data: close, borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,.12)', tension: .35, fill: true, pointRadius: 0 },
+        { label: '5MA', data: ma5, borderColor: '#22c55e', borderWidth: 1.5, pointRadius: 0 },
+        { label: '25MA', data: ma25, borderColor: '#f59e0b', borderWidth: 1.5, pointRadius: 0 },
+        { label: '75MA', data: ma75, borderColor: '#a855f7', borderWidth: 1.5, pointRadius: 0 },
+        { label: '200MA', data: ma200, borderColor: '#ef4444', borderWidth: 1.5, pointRadius: 0 },
+        { label: 'BB上', data: bb.up, borderColor: '#94a3b8', borderDash: [6,4], pointRadius: 0 },
+        { label: 'BB中', data: bb.mid, borderColor: '#cbd5e1', borderDash: [4,4], pointRadius: 0 },
+        { label: 'BB下', data: bb.low, borderColor: '#94a3b8', borderDash: [6,4], pointRadius: 0 },
+        { label: 'Support', data: candles.map(() => support), borderColor: '#22c55e', borderDash: [8,4], pointRadius: 0 },
+        { label: 'Resistance', data: candles.map(() => resistance), borderColor: '#ef4444', borderDash: [8,4], pointRadius: 0 },
+        { label: 'Target +20pips', data: candles.map(() => latest + 0.20), borderColor: '#38bdf8', borderDash: [2,4], pointRadius: 0 },
+        { label: 'Target -20pips', data: candles.map(() => latest - 0.20), borderColor: '#fb7185', borderDash: [2,4], pointRadius: 0 }
       ]
     },
-    options: {
-      parsing: false,
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: false,
-      plugins: {
-        legend: { labels: { color: '#cbd5e1' } },
-        annotation: {
-          annotations: {
-            zone: {
-              type: 'box',
-              xMin: labels[Math.max(0, labels.length - 4)],
-              xMax: labels[labels.length - 1],
-              yMin: zoneLow,
-              yMax: zoneHigh,
-              backgroundColor: 'rgba(96,165,250,.12)',
-              borderColor: 'rgba(96,165,250,.35)'
-            }
-          }
-        }
-      },
-      scales: {
-        x: { type: 'time', ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,.12)' } },
-        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,.12)' } }
-      }
-    }
+    options: { responsive: true, plugins: { legend: { labels: { color: '#cbd5e1' } } }, scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8' } } } }
   });
 
-  state.charts.macd = new Chart(el.macdChart, {
+  state.charts.macd = new Chart(el.macdChart.getContext('2d'), {
+    type: 'bar',
     data: {
-      labels,
+      labels: candles.map(d => d.x),
       datasets: [
-        { type: 'bar', label: 'Hist', data: hist, backgroundColor: hist.map(v => v >= 0 ? 'rgba(34,197,94,.65)' : 'rgba(239,68,68,.65)'), borderWidth: 0 },
-        { type: 'line', label: 'MACD', data: macd, borderColor: '#60a5fa', pointRadius: 0, tension: .25 },
-        { type: 'line', label: 'Signal', data: signal, borderColor: '#f59e0b', pointRadius: 0, tension: .25 }
+        { label: 'MACD', data: macd.macd, borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,.25)' },
+        { label: 'Signal', data: macd.signal, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,.25)' },
+        { label: 'Hist', data: macd.hist, borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,.4)' }
       ]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: false,
-      plugins: { legend: { labels: { color: '#cbd5e1' } } },
-      scales: {
-        x: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,.12)' } },
-        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(148,163,184,.12)' } }
-      }
-    }
+    options: { responsive: true, plugins: { legend: { labels: { color: '#cbd5e1' } } }, scales: { x: { ticks: { color: '#94a3b8' } }, y: { ticks: { color: '#94a3b8' } } } }
   });
-
-  updateKpis(candles, rsi, macd, signal);
 }
 
 async function refreshRate() {
-  if (state.busyRate) return;
-  state.busyRate = true;
   try {
-    const r = await fetch('/api/rate', { cache: 'no-store' });
-    if (!r.ok) throw new Error(`FX API ${r.status}`);
-    const json = await r.json();
-    state.lastRate = json.rate;
-    buildCharts(buildFallbackCandles(json.rate));
+    const data = await fetchRate();
+    const rate = Number(data.rate);
+    if (!Number.isFinite(rate)) throw new Error('invalid rate');
+    state.lastRate = rate;
+    buildCharts(rate);
   } catch (e) {
-    console.warn('rate refresh failed', e);
-  } finally {
-    state.busyRate = false;
-  }
-}
-
-async function refreshEvents() {
-  if (state.busyEvents) return;
-  state.busyEvents = true;
-  try {
-    const r = await fetch('/api/calendar', { cache: 'no-store' });
-    if (!r.ok) throw new Error(`ECON API ${r.status}`);
-    const events = await r.json();
-    const todayJST = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' });
-    const filtered = events
-      .filter(e => {
-        const c = e.Country || e.country;
-        const imp = e.Importance || e.importance || e.economicImpact;
-        const dt = e.Date || e.date || e.datetime;
-        if (!(c === 'United States' || c === 'Japan')) return false;
-        if (Number(imp) !== 3) return false;
-        if (!dt) return false;
-        return new Date(dt).toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' }) === todayJST;
-      })
-      .map(e => {
-        const country = (e.Country || e.country) === 'United States' ? 'US' : 'JP';
-        const dt = e.Date || e.date || e.datetime;
-        const name = e.Event || e.event || e.report_name || 'Economic Event';
-        return {
-          time: dt ? new Date(dt).toLocaleTimeString('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit' }) : '--:--',
-          country,
-          name,
-          note: (e.Forecast || e.forecast) ? `予想: ${e.Forecast || e.forecast}` : '',
-          cls: country === 'US' ? 'usd' : 'jpy'
-        };
-      })
-      .sort((a, b) => a.time.localeCompare(b.time));
-
-    state.lastEvents = filtered;
-    renderEvents(filtered);
-  } catch (e) {
-    console.warn('events refresh failed', e);
-    if (!state.lastEvents.length) renderEvents([]);
-  } finally {
-    state.busyEvents = false;
+    const rate = state.lastRate ?? 159.2;
+    buildCharts(rate);
   }
 }
 
@@ -304,23 +152,8 @@ function init() {
   Chart.defaults.color = '#cbd5e1';
   Chart.defaults.borderColor = 'rgba(148,163,184,.12)';
   Chart.defaults.plugins.legend.position = 'top';
-
-  const seed = buildFallbackCandles(state.lastRate || 159.2);
-  buildCharts(seed);
-  renderEvents([]);
-
   refreshRate();
-  refreshEvents();
-
   state.timers.rate = setInterval(refreshRate, 15000);
-  state.timers.events = setInterval(refreshEvents, 60000);
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-      refreshRate();
-      refreshEvents();
-    }
-  });
 }
 
 init();
