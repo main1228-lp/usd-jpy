@@ -88,4 +88,62 @@ function render(rate) {
         { label: 'Support', data: labels.map(() => support), borderColor: '#31d27c', borderDash: [8,4], pointRadius: 0, borderWidth: 1 },
         { label: 'Resistance', data: labels.map(() => resistance), borderColor: '#ff6b6b', borderDash: [8,4], pointRadius: 0, borderWidth: 1 },
         { label: '+20pips', data: labels.map(() => latest + 0.20), borderColor: '#8cc8ff', borderDash: [2,4], pointRadius: 0, borderWidth: 1 },
-        { label: '-20pips', data: labels.map(() => latest - 0.20), borderColor: '#ff9bb2', 
+        { label: '-20pips', data: labels.map(() => latest - 0.20), borderColor: '#ff9bb2', borderDash: [2,4], pointRadius: 0, borderWidth: 1 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: '#cfe0f7' } } },
+      scales: {
+        x: { ticks: { color: '#8ea0ba', maxRotation: 0, autoSkip: true } },
+        y: { ticks: { color: '#8ea0ba' }, grid: { color: 'rgba(35,50,74,.35)' } }
+      }
+    }
+  });
+
+  state.charts.macd = new Chart(el.macdChart.getContext('2d'), {
+    data: {
+      labels,
+      datasets: [
+        { type: 'bar', label: 'Hist', data: macd.hist, backgroundColor: 'rgba(49,210,124,.45)', borderColor: '#31d27c' },
+        { type: 'line', label: 'MACD', data: macd.macd, borderColor: '#4ea1ff', pointRadius: 0, borderWidth: 2, tension: .25 },
+        { type: 'line', label: 'Signal', data: macd.signal, borderColor: '#f5c451', pointRadius: 0, borderWidth: 2, tension: .25 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { labels: { color: '#cfe0f7' } } },
+      scales: {
+        x: { ticks: { color: '#8ea0ba', maxRotation: 0, autoSkip: true } },
+        y: { ticks: { color: '#8ea0ba' }, grid: { color: 'rgba(35,50,74,.35)' } }
+      }
+    }
+  });
+}
+
+async function refresh() {
+  try {
+    const data = await fetchRate();
+    const rate = Number(data.rate);
+    state.lastRate = Number.isFinite(rate) ? rate : state.lastRate;
+    render(state.lastRate ?? 159.2);
+  } catch {
+    render(state.lastRate ?? 159.2);
+  }
+}
+
+function boot() {
+  if (!window.Chart) return;
+  Chart.defaults.color = '#cfe0f7';
+  Chart.defaults.borderColor = 'rgba(35,50,74,.35)';
+  Chart.defaults.plugins.legend.position = 'top';
+  refresh();
+  setInterval(refresh, 15000);
+}
+
+window.addEventListener('DOMContentLoaded', boot);
