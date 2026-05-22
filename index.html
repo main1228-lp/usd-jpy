@@ -3,202 +3,44 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>USD/JPY Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>USD/JPY テクニカル分析ダッシュボード</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
-    :root {
-      --bg: #0f172a;
-      --panel: #111827;
-      --panel-2: #0b1220;
-      --text: #e5e7eb;
-      --muted: #94a3b8;
-      --line: rgba(148, 163, 184, 0.18);
-      --green: #22c55e;
-      --red: #ef4444;
-      --blue: #60a5fa;
-      --amber: #f59e0b;
-      --purple: #a855f7;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: linear-gradient(180deg, #020617 0%, var(--bg) 100%);
-      color: var(--text);
-    }
-    .wrap {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 24px;
-    }
-    .header {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: space-between;
-      gap: 16px;
-      align-items: end;
-      margin-bottom: 20px;
-    }
-    .title h1 {
-      margin: 0;
-      font-size: 28px;
-      line-height: 1.2;
-    }
-    .title p {
-      margin: 6px 0 0;
-      color: var(--muted);
-    }
-    .summary {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-    .card {
-      background: linear-gradient(180deg, rgba(17,24,39,.96), rgba(11,18,32,.96));
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 16px;
-      box-shadow: 0 10px 30px rgba(0,0,0,.18);
-    }
-    .metric .label {
-      color: var(--muted);
-      font-size: 12px;
-      margin-bottom: 8px;
-    }
-    .metric .value {
-      font-size: 28px;
-      font-weight: 700;
-      letter-spacing: .02em;
-    }
-    .metric .sub {
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 13px;
-    }
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: rgba(34,197,94,.14);
-      color: #86efac;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    .badge.short {
-      background: rgba(239,68,68,.14);
-      color: #fca5a5;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 16px;
-      margin-bottom: 16px;
-    }
-    .panel h2 {
-      margin: 0 0 12px;
-      font-size: 16px;
-    }
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-    }
-    .stat {
-      padding: 12px;
-      border-radius: 12px;
-      background: rgba(15,23,42,.75);
-      border: 1px solid var(--line);
-    }
-    .stat .k { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
-    .stat .v { font-size: 18px; font-weight: 700; }
-    .chart-card {
-      height: 100%;
-    }
-    .chart-wrap {
-      height: 420px;
-    }
-    canvas { width: 100% !important; height: 100% !important; }
-    .chart-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-    }
-    @media (max-width: 1100px) {
-      .summary, .grid, .chart-grid, .stats { grid-template-columns: 1fr 1fr; }
-    }
-    @media (max-width: 720px) {
-      .summary, .grid, .chart-grid, .stats { grid-template-columns: 1fr; }
-      .chart-wrap { height: 340px; }
-      .title h1 { font-size: 22px; }
-    }
+    :root{--bg:#050b16;--panel:#0d1526;--panel2:#0b1220;--line:#23324a;--text:#e5eefb;--muted:#8ea0ba;--accent:#8cc8ff;--green:#31d27c;--red:#ff6b6b;--blue:#4ea1ff;--gold:#f5c451}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:linear-gradient(180deg,#04101f 0%,var(--bg) 100%);color:var(--text)}
+    .wrap{max-width:1400px;margin:0 auto;padding:16px}
+    .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+    h1{margin:0;font-size:28px;line-height:1.15}
+    .sub{color:var(--muted);margin-top:6px;font-size:14px}
+    .pills{display:flex;gap:10px;flex-wrap:wrap}
+    .pill{border:1px solid var(--line);background:rgba(13,21,38,.92);border-radius:999px;padding:8px 12px;color:#b8c7dd;font-size:13px}
+    .summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}
+    .card{background:linear-gradient(180deg,rgba(13,21,38,.96),rgba(9,16,29,.96));border:1px solid var(--line);border-radius:18px;padding:14px 16px;box-shadow:0 14px 40px rgba(0,0,0,.22)}
+    .label{color:var(--muted);font-size:12px;margin-bottom:8px}
+    .value{font-size:28px;font-weight:800;letter-spacing:.02em}
+    .small{margin-top:6px;color:var(--muted);font-size:13px}
+    .badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;background:rgba(49,210,124,.13);color:#94f0ba;font-size:12px;font-weight:700}
+    .badge.short{background:rgba(255,107,107,.13);color:#ffb0b0}
+    .grid2{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px}
+    .grid1{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+    .panel h2{margin:0 0 10px;font-size:16px}
+    .chartbox{position:relative;height:420px}
+    .chartbox.sm{height:330px}
+    canvas{width:100%!important;height:100%!important;display:block}
+    .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .stat{border:1px solid var(--line);background:rgba(7,13,24,.55);border-radius:14px;padding:12px}
+    .stat .k{color:var(--muted);font-size:12px;margin-bottom:6px}
+    .stat .v{font-size:18px;font-weight:800}
+    @media (max-width:1100px){.summary,.grid2,.grid1{grid-template-columns:1fr 1fr}.chartbox{height:360px}}
+    @media (max-width:720px){.summary,.grid2,.grid1{grid-template-columns:1fr}.chartbox{height:320px}h1{font-size:22px}}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="header">
-      <div class="title">
-        <h1>USD/JPY Dashboard</h1>
-        <p>無料レート版 / 経済指標なし</p>
+    <div class="top">
+      <div>
+        <h1>USD/JPY テクニカル分析ダッシュボード</h1>
+        <div class="sub">直近5日分のローソク足 / MACD / ボリンジャーバンド / 本日の重要経済指標</div>
       </div>
-      <div class="badge" id="biasText">読み込み中</div>
-    </div>
-
-    <div class="summary">
-      <div class="card metric">
-        <div class="label">現在レート</div>
-        <div class="value"><span id="currentRate">--</span></div>
-        <div class="sub">USD/JPY</div>
-      </div>
-      <div class="card metric">
-        <div class="label">前回比</div>
-        <div class="value"><span id="dayChange">--</span></div>
-        <div class="sub"><span id="dayChangePct">--</span></div>
-      </div>
-      <div class="card metric">
-        <div class="label">RSI(14)</div>
-        <div class="value"><span id="rsiVal">--</span></div>
-        <div class="sub" id="rsiText">--</div>
-      </div>
-      <div class="card metric">
-        <div class="label">サポレジ</div>
-        <div class="value" style="font-size:16px; line-height:1.6;">
-          S <span id="supportText">--</span><br>
-          R <span id="resistanceText">--</span>
-        </div>
-        <div class="sub">直近レンジ</div>
-      </div>
-    </div>
-
-    <div class="grid">
-      <div class="card panel">
-        <h2>価格チャート</h2>
-        <div class="chart-wrap">
-          <canvas id="priceChart"></canvas>
-        </div>
-      </div>
-      <div class="card panel">
-        <h2>主要指標</h2>
-        <div class="stats">
-          <div class="stat"><div class="k">5MA</div><div class="v">表示済み</div></div>
-          <div class="stat"><div class="k">25MA</div><div class="v">表示済み</div></div>
-          <div class="stat"><div class="k">75MA</div><div class="v">表示済み</div></div>
-          <div class="stat"><div class="k">200MA</div><div class="v">表示済み</div></div>
-          <div class="stat"><div class="k">BB</div><div class="v">表示済み</div></div>
-          <div class="stat"><div class="k">±20pips</div><div class="v">表示済み</div></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="card panel chart-card">
-      <h2>MACD</h2>
-      <div class="chart-wrap">
-        <canvas id="macdChart"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <script src="./app.js"></script>
-</body>
-</html>
+      <div 
