@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>USD/JPY Technical Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.1/dist/chartjs-chart-financial.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+  <style>
+    :root{--bg:#07111d;--panel:#0f1827;--line:#22324b;--text:#e5eefb;--muted:#8ea1bf;--up:#22c55e;--down:#ef4444;--accent:#60a5fa;--warn:#f59e0b;--purple:#a855f7;}
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#050b14,#07111d 38%,#08101b);color:var(--text);font-family:Inter,system-ui,sans-serif}
+    header{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:end}
+    .h1{font-size:22px;font-weight:800}.sub{color:var(--muted);font-size:13px;margin-top:4px}
+    .grid{display:grid;grid-template-columns:1.8fr .75fr;gap:14px;padding:14px}
+    .left,.right{display:grid;gap:14px;align-content:start}.left{grid-template-columns:repeat(12,1fr)}
+    .card{background:rgba(15,24,39,.94);border:1px solid var(--line);border-radius:18px;padding:14px;box-shadow:0 12px 28px rgba(0,0,0,.25)}
+    .kpi{grid-column:span 3}.chart{grid-column:span 12}.half{grid-column:span 6}
+    .label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em}.value{font-size:30px;font-weight:800;margin-top:4px}.small{font-size:13px;color:var(--muted)}
+    .badge{display:inline-block;padding:8px 12px;border-radius:999px;font-weight:700;border:1px solid rgba(34,197,94,.35);background:rgba(34,197,94,.12);color:#86efac}.badge.short{border-color:rgba(239,68,68,.35);background:rgba(239,68,68,.12);color:#fca5a5}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.pill{padding:8px 10px;border:1px solid var(--line);border-radius:12px;background:#0b1424;color:var(--muted);font-size:13px}
+    .side-title{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.side-title h2{margin:0;font-size:16px}
+    .events{display:flex;flex-direction:column;gap:10px;max-height:820px;overflow:auto}
+    .event{background:rgba(17,29,48,.9);border:1px solid var(--line);border-radius:14px;padding:12px}.event-top{display:flex;justify-content:space-between;gap:10px;align-items:center}.time{font-weight:700}.country{font-size:12px;color:var(--muted)}
+    .impact{padding:4px 8px;border-radius:999px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#fbbf24;font-size:12px;font-weight:700}.impact.jpy{background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.35);color:#93c5fd}.impact.usd{background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.35);color:#86efac}
+    .event-name{margin-top:8px;font-weight:700;line-height:1.35}.event-note{margin-top:6px;color:var(--muted);font-size:12px}
+    canvas{width:100%} #priceChart{height:640px} #macdChart{height:300px}
+    @media(max-width:1100px){.grid{grid-template-columns:1fr}.left{grid-template-columns:repeat(12,1fr)}}
+    @media(max-width:700px){.kpi,.half{grid-column:span 12}}
+  </style>
+</head>
+<body>
+  <header>
+    <div><div class="h1">USD/JPY テクニカル分析ダッシュボード</div><div class="sub">直近5日分のローソク足 / MACD / ボリンジャーバンド / 本日の重要経済指標</div></div>
+    <div class="row"><span class="pill">Vercel Ready</span><span class="pill">15秒/60秒更新</span><span class="pill">iPhone対応</span></div>
+  </header>
+
+  <div class="grid">
+    <section class="left">
+      <div class="card kpi"><div class="label">現在レート</div><div class="value" id="currentRate">--</div><div class="small">USD/JPY</div></div>
+      <div class="card kpi"><div class="label">前日比</div><div class="value" id="dayChange">--</div><div class="small" id="dayChangePct">--</div></div>
+      <div class="card kpi"><div class="label">RSI(14)</div><div class="value" id="rsiVal">--</div><div class="small" id="rsiText">--</div></div>
+      <div class="card kpi"><div class="label">判定</div><div class="value" style="font-size:24px" id="biasText">--</div><div class="small">MA / MACD / RSI を加味した簡易判定</div></div>
+
+      <div class="card chart"><div class="label">ローソク足 + MA + Bollinger + 20pipsゾーン</div><canvas id="priceChart"></canvas></div>
+      <div class="card chart"><div class="label">MACD</div><canvas id="macdChart"></canvas></div>
+
+      <div class="card half"><div class="label">主要サポート</div><div class="value" style="font-size:22px" id="supportText">--</div><div class="small">主要押し目候補</div></div>
+      <div class="card half"><div class="label">主要レジスタンス</div><div class="value" style="font-size:22px" id="resistanceText">--</div><div class="small">主要戻り売り候補</div></div>
+    </section>
+
+    <aside class="right">
+      <div class="card">
+        <div class="side-title"><h2>本日の重要指標</h2><span class="pill">★★★ only</span></div>
+        <div class="events" id="eventList"></div>
+      </div>
+    </aside>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
