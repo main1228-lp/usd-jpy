@@ -2,7 +2,7 @@
 const RATE_URL = "/api/rate";
 const REFRESH_MS = 3 * 60 * 1000;
 
-let currentTF = "1h"; // デフォルト
+let currentTF = "5min"; // デフォルト
 const TF_BARS_PER_DAY = { "5min":288, "1h":24, "4h":6, "1day":1 };
 
 const $ = function(id){ return document.getElementById(id); };
