@@ -1,12 +1,12 @@
-// /api/strength.js  — 通貨強弱（24h変化率）
+// /api/strength.js  — 通貨強弱（24h変化率）8ペア版
 export default async function handler(req, res){
   const KEY = process.env.TWELVE_DATA_KEY;
   if(!KEY){ res.status(500).json({error:"No API key (TWELVE_DATA_KEY)"}); return; }
 
   const pairs = [
     "USD/JPY","EUR/USD","GBP/USD","AUD/USD",
-    "EUR/JPY","GBP/JPY","AUD/JPY","EUR/GBP","EUR/AUD"
-  ];
+    "EUR/JPY","GBP/JPY","AUD/JPY","EUR/GBP"
+  ]; // 8ペアに削減（無料プラン対応）
   const symbol = pairs.join(",");
   const url = "https://api.twelvedata.com/quote?symbol="
     + encodeURIComponent(symbol) + "&apikey=" + KEY;
@@ -21,26 +21,18 @@ export default async function handler(req, res){
       if(row.change != null && row.previous_close){
         return (Number(row.change)/Number(row.previous_close))*100;
       }
-      if(row.close != null && row.previous_close){
-        return ((Number(row.close)-Number(row.previous_close))/Number(row.previous_close))*100;
-      }
       return null;
     };
 
     const changes = {};
-
     if(Array.isArray(j)){
-      j.forEach(function(row){
-        if(row && row.symbol) changes[row.symbol] = pick(row);
-      });
+      j.forEach(function(row){ if(row && row.symbol) changes[row.symbol] = pick(row); });
     }else if(j && typeof j === "object"){
-      if(j.symbol && j.percent_change != null){
-        changes[j.symbol] = pick(j);
-      }
+      if(j.symbol && j.percent_change != null) changes[j.symbol] = pick(j);
       pairs.forEach(function(p){
-        const candidates = [p, p.replace("/",""), p.replace("/","_")];
-        for(let i=0;i<candidates.length;i++){
-          const row = j[candidates[i]];
+        const cands = [p, p.replace("/",""), p.replace("/","_")];
+        for(let i=0;i<cands.length;i++){
+          const row = j[cands[i]];
           if(row && typeof row === "object"){
             const v = pick(row);
             if(v != null){ changes[p] = v; break; }
@@ -52,9 +44,9 @@ export default async function handler(req, res){
     const map = {
       USD: ["USD/JPY","-EUR/USD","-GBP/USD","-AUD/USD"],
       JPY: ["-USD/JPY","-EUR/JPY","-GBP/JPY","-AUD/JPY"],
-      EUR: ["EUR/USD","EUR/JPY","EUR/GBP","EUR/AUD"],
+      EUR: ["EUR/USD","EUR/JPY","EUR/GBP"],
       GBP: ["GBP/USD","GBP/JPY","-EUR/GBP"],
-      AUD: ["AUD/USD","AUD/JPY","-EUR/AUD"]
+      AUD: ["AUD/USD","AUD/JPY"]
     };
     const result = {};
     Object.keys(map).forEach(function(cur){
@@ -73,8 +65,6 @@ export default async function handler(req, res){
       strength: result,
       raw: changes,
       debug: {
-        topLevelKeys: j && typeof j==="object" ? Object.keys(j).slice(0,15) : null,
-        isArray: Array.isArray(j),
         apiStatus: j && j.status ? j.status : null,
         apiMessage: j && j.message ? j.message : null
       }
