@@ -41,7 +41,6 @@
 
     .sig-nums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)}
 
-    /* ===== タップでコピー可能セル ===== */
     .sig-num{
       text-align:center;
       padding:8px 4px;
@@ -63,11 +62,9 @@
     .sig-num .lbl .ico{font-size:10px;opacity:.6}
     .sig-num .val{font-size:15px;font-weight:700;margin-top:2px;font-feature-settings:'tnum'}
 
-    /* スコアはコピー不可なので視覚的に区別 */
     .sig-num:not(.copyable){cursor:default}
     .sig-num:not(.copyable) .lbl .ico{display:none}
 
-    /* ===== コピー通知トースト ===== */
     #copyToast{
       position:fixed;
       bottom:24px;
@@ -99,6 +96,7 @@
     .strength-row .bar{flex:1;position:relative;height:14px;background:rgba(255,255,255,.05);border-radius:3px}
     .strength-row .pct{width:64px;text-align:right;font-weight:700;font-size:12px;font-feature-settings:'tnum'}
 
+    /* ===== スマホ最適化(T/P と S/L を必ず横並び) ===== */
     @media (max-width:720px){
       .wrap{padding:10px}
       h1{font-size:17px}
@@ -109,7 +107,14 @@
       .chartbox{height:300px}
       #signalCard{padding:12px}
       .sig-action{font-size:19px}
+
+      /* 2列固定: 1行目=エントリー+スコア / 2行目=T/P+S/L */
       .sig-nums{grid-template-columns:repeat(2,1fr);gap:10px}
+      .sig-num:nth-child(1){grid-column:1;grid-row:1}  /* エントリー */
+      .sig-num:nth-child(4){grid-column:2;grid-row:1}  /* スコア */
+      .sig-num:nth-child(2){grid-column:1;grid-row:2}  /* T/P */
+      .sig-num:nth-child(3){grid-column:2;grid-row:2}  /* S/L */
+
       .sig-num .val{font-size:16px}
       .card h2{font-size:13px}
       .strength-row .ccy{width:54px;font-size:12px}
@@ -150,7 +155,6 @@
       <span id="biasText"></span>
     </div>
 
-    <!-- ===== エントリーシグナル(タップでコピー対応) ===== -->
     <div class="card" id="signalCard">
       <div class="sig-head">
         <div style="min-width:0;flex:1">
@@ -161,18 +165,22 @@
         </div>
       </div>
       <div class="sig-nums">
+        <!-- 1番目: エントリー -->
         <div class="sig-num copyable" data-copy-target="sigEntry" data-copy-label="エントリー価格">
           <div class="lbl">エントリー <span class="ico">📋</span></div>
           <div class="val" id="sigEntry">--</div>
         </div>
+        <!-- 2番目: T/P -->
         <div class="sig-num copyable" data-copy-target="sigTP" data-copy-label="T/P 利確">
           <div class="lbl" style="color:var(--green)">T/P 利確 <span class="ico">📋</span></div>
           <div class="val" id="sigTP" style="color:var(--green)">--</div>
         </div>
+        <!-- 3番目: S/L -->
         <div class="sig-num copyable" data-copy-target="sigSL" data-copy-label="S/L 損切">
           <div class="lbl" style="color:var(--red)">S/L 損切 <span class="ico">📋</span></div>
           <div class="val" id="sigSL" style="color:var(--red)">--</div>
         </div>
+        <!-- 4番目: スコア -->
         <div class="sig-num">
           <div class="lbl">スコア</div>
           <div class="val" id="sigScore">--/5</div>
@@ -197,10 +205,8 @@
 
   </div>
 
-  <!-- コピー通知トースト -->
   <div id="copyToast">コピーしました</div>
 
-  <!-- ===== タップコピー機能 ===== -->
   <script>
   (function(){
     const toast = document.getElementById("copyToast");
