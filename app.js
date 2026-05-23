@@ -1,4 +1,4 @@
-// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替）
+// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱）
 const RATE_URL = "/api/rate";
 const REFRESH_MS = 3 * 60 * 1000;
 
@@ -98,6 +98,50 @@ async function fetchCandles(tf){
 }
 async function fetchRate(){try{const r=await fetch(RATE_URL,{cache:"no-store"});if(!r.ok)return null;const j=await r.json();const v=Number(j.rate||j.price||j.close);return isFinite(v)?v:null;}catch(e){return null;}}
 
+async function fetchStrength(){
+  try{
+    const r=await fetch("/api/strength",{cache:"no-store"});
+    if(!r.ok)return null;
+    const j=await r.json();
+    return j.strength||null;
+  }catch(e){return null;}
+}
+
+function drawStrength(s){
+  const box=document.getElementById("strengthBars");
+  if(!box||!s)return;
+  const order=["USD","JPY","EUR","GBP","AUD"];
+  const vals=order.map(function(c){return {c:c,v:s[c]==null?0:s[c]};});
+  const max=Math.max.apply(null,[0.05].concat(vals.map(function(x){return Math.abs(x.v);})));
+  const sorted=vals.slice().sort(function(a,b){return b.v-a.v;});
+  box.innerHTML=sorted.map(function(x,i){
+    const pct=(Math.abs(x.v)/max)*50;
+    const isPos=x.v>=0;
+    const color=isPos?"#31d27c":"#ff6b6b";
+    const left=isPos?"50%":(50-pct)+"%";
+    const width=pct+"%";
+    const rank=i===0?"🥇":(i===sorted.length-1?"🐢":"");
+    return ''
+      +'<div style="display:flex;align-items:center;gap:10px">'
+      +'<div style="width:70px;font-weight:700">'+x.c+' '+rank+'</div>'
+      +'<div style="flex:1;position:relative;height:18px;background:rgba(255,255,255,.05);border-radius:4px">'
+      +'<div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(255,255,255,.3)"></div>'
+      +'<div style="position:absolute;left:'+left+';top:0;bottom:0;width:'+width+';background:'+color+';border-radius:2px"></div>'
+      +'</div>'
+      +'<div style="width:80px;text-align:right;color:'+color+';font-weight:700">'+(isPos?"+":"")+x.v.toFixed(2)+'%</div>'
+      +'</div>';
+  }).join("");
+  const top=sorted[0], bot=sorted[sorted.length-1];
+  const hint=document.getElementById("strengthHint");
+  if(hint && top && bot && (top.v-bot.v)>0.1){
+    hint.textContent="推奨方向: "+top.c+"買い / "+bot.c+"売り（例: "+top.c+"/"+bot.c+"）";
+    hint.style.color="#f5c451";
+  }else if(hint){
+    hint.textContent="強弱差が小さい — 様子見推奨";
+    hint.style.color="";
+  }
+}
+
 const baseOpts={responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:"index",intersect:false},plugins:{legend:{labels:{color:"#cdd9ee"}}},scales:{x:{ticks:{color:"#8ea0ba",maxRotation:0,autoSkip:true,maxTicksLimit:8},grid:{color:"rgba(255,255,255,0.05)"}},y:{ticks:{color:"#8ea0ba"},grid:{color:"rgba(255,255,255,0.05)"}}}};
 
 function drawPrice(candles){
@@ -190,6 +234,8 @@ async function update(){
     el.supportText.textContent=sr.support.toFixed(3);
     el.resistanceText.textContent=sr.resistance.toFixed(3);
     computeSignal(candles);
+    const strength=await fetchStrength();
+    if(strength)drawStrength(strength);
   }catch(e){console.error(e);el.currentRate.textContent="Err";}
 }
 
