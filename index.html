@@ -14,53 +14,91 @@
     body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:linear-gradient(180deg,#04101f 0%,var(--bg) 100%);color:var(--text);font-size:15px;line-height:1.5}
     .wrap{max-width:1400px;margin:0 auto;padding:12px}
 
-    /* ===== ヘッダー(コンパクト化) ===== */
     .top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
     .top-left{flex:1;min-width:0}
     h1{margin:0;font-size:20px;line-height:1.2;white-space:normal;word-break:keep-all}
     .sub{color:var(--muted);margin-top:4px;font-size:12px}
 
-    /* 時間足ピル */
     .pills{display:flex;gap:6px;flex-wrap:wrap}
     .pill{border:1px solid var(--line);background:rgba(13,21,38,.92);border-radius:999px;padding:6px 12px;color:#b8c7dd;font-size:13px;font-weight:600}
     .pill.tf{cursor:pointer}
     .pill.tf.active{background:rgba(140,200,255,.18);color:#fff;border-color:#4ea1ff}
 
-    /* セッションバー */
     #sessionBar{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
     #sessionNow,#sessionFlash{padding:4px 10px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
     #sessionTime{margin-left:auto;font-size:11px;color:var(--muted)}
 
-    /* カード */
     .card{background:linear-gradient(180deg,rgba(13,21,38,.96),rgba(9,16,29,.96));border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.22);margin-bottom:10px}
     .card h2{margin:0 0 8px;font-size:14px;color:#cdd9ee}
     .muted{color:var(--muted)}
     .small{font-size:12px;color:var(--muted)}
 
-    /* ===== エントリーシグナル(コンパクト) ===== */
     #signalCard{border:2px solid #2a3550;padding:14px}
     .sig-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
     .sig-action{font-size:22px;font-weight:800;margin-top:4px;line-height:1.15}
     .sig-reason{font-size:11px;color:var(--muted);margin-top:4px}
     #perfectOrder{display:inline-block;margin-top:6px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:700;background:#1b2440;color:var(--muted);border:1px solid #2a3550}
 
-    /* 数値グリッド */
     .sig-nums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.06)}
-    .sig-num{text-align:center}
-    .sig-num .lbl{font-size:10px;color:var(--muted);letter-spacing:.04em}
+
+    /* ===== タップでコピー可能セル ===== */
+    .sig-num{
+      text-align:center;
+      padding:8px 4px;
+      border-radius:8px;
+      cursor:pointer;
+      transition:background .15s, transform .1s;
+      user-select:none;
+      -webkit-tap-highlight-color:transparent;
+      position:relative;
+    }
+    .sig-num.copyable:hover{background:rgba(255,255,255,.04)}
+    .sig-num.copyable:active{transform:scale(.96);background:rgba(140,200,255,.12)}
+    .sig-num.copied{background:rgba(49,210,124,.18)!important;animation:flash .6s ease}
+    @keyframes flash{
+      0%{background:rgba(49,210,124,.35)}
+      100%{background:rgba(49,210,124,.18)}
+    }
+    .sig-num .lbl{font-size:10px;color:var(--muted);letter-spacing:.04em;display:flex;align-items:center;justify-content:center;gap:4px}
+    .sig-num .lbl .ico{font-size:10px;opacity:.6}
     .sig-num .val{font-size:15px;font-weight:700;margin-top:2px;font-feature-settings:'tnum'}
 
-    /* チャート */
+    /* スコアはコピー不可なので視覚的に区別 */
+    .sig-num:not(.copyable){cursor:default}
+    .sig-num:not(.copyable) .lbl .ico{display:none}
+
+    /* ===== コピー通知トースト ===== */
+    #copyToast{
+      position:fixed;
+      bottom:24px;
+      left:50%;
+      transform:translateX(-50%) translateY(80px);
+      background:rgba(49,210,124,.95);
+      color:#062712;
+      padding:10px 18px;
+      border-radius:999px;
+      font-weight:700;
+      font-size:13px;
+      box-shadow:0 8px 24px rgba(0,0,0,.4);
+      opacity:0;
+      transition:opacity .25s, transform .25s;
+      pointer-events:none;
+      z-index:9999;
+      white-space:nowrap;
+    }
+    #copyToast.show{
+      opacity:1;
+      transform:translateX(-50%) translateY(0);
+    }
+
     .chartbox{position:relative;height:380px}
     canvas{width:100%!important;height:100%!important;display:block}
 
-    /* 通貨強弱 */
     .strength-row{display:flex;align-items:center;gap:8px}
     .strength-row .ccy{width:60px;font-weight:700;font-size:13px}
     .strength-row .bar{flex:1;position:relative;height:14px;background:rgba(255,255,255,.05);border-radius:3px}
     .strength-row .pct{width:64px;text-align:right;font-weight:700;font-size:12px;font-feature-settings:'tnum'}
 
-    /* ===== スマホ最適化 ===== */
     @media (max-width:720px){
       .wrap{padding:10px}
       h1{font-size:17px}
@@ -86,7 +124,6 @@
 <body>
   <div class="wrap">
 
-    <!-- ===== ヘッダー ===== -->
     <div class="top">
       <div class="top-left">
         <h1>USD/JPY テクニカル分析</h1>
@@ -105,7 +142,6 @@
       </div>
     </div>
 
-    <!-- ダミー(JSエラー防止) -->
     <div style="display:none">
       <span id="dayChange"></span>
       <span id="dayChangePct"></span>
@@ -114,27 +150,27 @@
       <span id="biasText"></span>
     </div>
 
-    <!-- ===== エントリーシグナル ===== -->
+    <!-- ===== エントリーシグナル(タップでコピー対応) ===== -->
     <div class="card" id="signalCard">
       <div class="sig-head">
         <div style="min-width:0;flex:1">
-          <div class="small">エントリーシグナル</div>
+          <div class="small">エントリーシグナル <span style="opacity:.6;font-size:10px">(数値タップでコピー)</span></div>
           <div class="sig-action" id="signalAction">--</div>
           <div class="sig-reason" id="signalReason">--</div>
           <div id="perfectOrder">PO判定中…</div>
         </div>
       </div>
       <div class="sig-nums">
-        <div class="sig-num">
-          <div class="lbl">エントリー</div>
+        <div class="sig-num copyable" data-copy-target="sigEntry" data-copy-label="エントリー価格">
+          <div class="lbl">エントリー <span class="ico">📋</span></div>
           <div class="val" id="sigEntry">--</div>
         </div>
-        <div class="sig-num">
-          <div class="lbl" style="color:var(--green)">T/P 利確</div>
+        <div class="sig-num copyable" data-copy-target="sigTP" data-copy-label="T/P 利確">
+          <div class="lbl" style="color:var(--green)">T/P 利確 <span class="ico">📋</span></div>
           <div class="val" id="sigTP" style="color:var(--green)">--</div>
         </div>
-        <div class="sig-num">
-          <div class="lbl" style="color:var(--red)">S/L 損切</div>
+        <div class="sig-num copyable" data-copy-target="sigSL" data-copy-label="S/L 損切">
+          <div class="lbl" style="color:var(--red)">S/L 損切 <span class="ico">📋</span></div>
           <div class="val" id="sigSL" style="color:var(--red)">--</div>
         </div>
         <div class="sig-num">
@@ -144,13 +180,11 @@
       </div>
     </div>
 
-    <!-- ===== チャート ===== -->
     <div class="card">
       <h2>ローソク足 + MA + BB + S/R + 現在レート</h2>
       <div class="chartbox"><canvas id="priceChart"></canvas></div>
     </div>
 
-    <!-- ===== 通貨強弱 ===== -->
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap">
         <h2 style="margin:0">通貨強弱 (24h%)</h2>
@@ -162,6 +196,60 @@
     </div>
 
   </div>
+
+  <!-- コピー通知トースト -->
+  <div id="copyToast">コピーしました</div>
+
+  <!-- ===== タップコピー機能 ===== -->
+  <script>
+  (function(){
+    const toast = document.getElementById("copyToast");
+    function showToast(msg, isError){
+      toast.textContent = msg;
+      toast.style.background = isError ? "rgba(255,107,107,.95)" : "rgba(49,210,124,.95)";
+      toast.style.color = isError ? "#3a0a0a" : "#062712";
+      toast.classList.add("show");
+      clearTimeout(toast._t);
+      toast._t = setTimeout(function(){ toast.classList.remove("show"); }, 1600);
+    }
+    function fallbackCopy(text){
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try{ document.execCommand("copy"); }catch(e){}
+      document.body.removeChild(ta);
+    }
+    async function copyText(text){
+      if(navigator.clipboard && window.isSecureContext){
+        try{ await navigator.clipboard.writeText(text); return true; }
+        catch(e){ fallbackCopy(text); return true; }
+      }
+      fallbackCopy(text);
+      return true;
+    }
+    document.addEventListener("click", async function(ev){
+      const cell = ev.target.closest(".sig-num.copyable");
+      if(!cell) return;
+      const targetId = cell.getAttribute("data-copy-target");
+      const label    = cell.getAttribute("data-copy-label") || "値";
+      const val      = document.getElementById(targetId);
+      if(!val) return;
+      const text = (val.textContent || "").trim();
+      if(!text || text === "--"){
+        showToast("値がありません", true);
+        return;
+      }
+      await copyText(text);
+      cell.classList.add("copied");
+      setTimeout(function(){ cell.classList.remove("copied"); }, 600);
+      showToast("✓ "+label+" をコピー: "+text);
+    });
+  })();
+  </script>
+
   <script src="./app.js" defer></script>
 </body>
 </html>
