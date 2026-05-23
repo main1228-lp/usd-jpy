@@ -1,7 +1,9 @@
-// USD/JPY ダッシュボード（Twelve Data 実ローソク足 + Chart.js）
-const CANDLES_URL = "/api/candles?interval=15min&outputsize=200";
+// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替）
 const RATE_URL = "/api/rate";
 const REFRESH_MS = 3 * 60 * 1000;
+
+let currentTF = "1h"; // デフォルト
+const TF_BARS_PER_DAY = { "5min":288, "1h":24, "4h":6, "1day":1 };
 
 const $ = function(id){ return document.getElementById(id); };
 const el = {
@@ -14,7 +16,8 @@ const el = {
   supportText: $("supportText"),
   resistanceText: $("resistanceText"),
   priceCanvas: $("priceChart"),
-  macdCanvas: $("macdChart")
+  macdCanvas: $("macdChart"),
+  pills: $("intervalPills")
 };
 let priceChart, macdChart;
 
@@ -24,18 +27,16 @@ function rsi(a,p){p=p||14;const o=Array(a.length).fill(null);let g=0,l=0;for(let
 function macdCalc(a){const e12=ema(a,12),e26=ema(a,26);const line=a.map(function(_,i){return e12[i]-e26[i];});const sig=ema(line,9);const hist=line.map(function(v,i){return v-sig[i];});return {line:line,signal:sig,hist:hist};}
 function bollinger(a,p,m){p=p||20;m=m||2;const mid=sma(a,p);const up=Array(a.length).fill(null);const lo=Array(a.length).fill(null);for(let i=p-1;i<a.length;i++){const sl=a.slice(i-p+1,i+1);const av=mid[i];const v=sl.reduce(function(s,x){return s+(x-av)*(x-av);},0)/p;const sd=Math.sqrt(v);up[i]=av+m*sd;lo[i]=av-m*sd;}return {mid:mid,up:up,lo:lo};}
 
-async function fetchCandles(){const r=await fetch(CANDLES_URL,{cache:"no-store"});const j=await r.json();if(!j.candles||!j.candles.length)throw new Error("no candles");return j.candles;}
+async function fetchCandles(tf){
+  const url="/api/candles?interval="+tf+"&outputsize=200";
+  const r=await fetch(url,{cache:"no-store"});
+  const j=await r.json();
+  if(!j.candles||!j.candles.length)throw new Error("no candles");
+  return j.candles;
+}
 async function fetchRate(){try{const r=await fetch(RATE_URL,{cache:"no-store"});if(!r.ok)return null;const j=await r.json();const v=Number(j.rate||j.price||j.close);return isFinite(v)?v:null;}catch(e){return null;}}
 
-const baseOpts = {
-  responsive:true,maintainAspectRatio:false,animation:false,
-  interaction:{mode:"index",intersect:false},
-  plugins:{legend:{labels:{color:"#cdd9ee"}}},
-  scales:{
-    x:{ticks:{color:"#8ea0ba",maxRotation:0,autoSkip:true,maxTicksLimit:8},grid:{color:"rgba(255,255,255,0.05)"}},
-    y:{ticks:{color:"#8ea0ba"},grid:{color:"rgba(255,255,255,0.05)"}}
-  }
-};
+const baseOpts={responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:"index",intersect:false},plugins:{legend:{labels:{color:"#cdd9ee"}}},scales:{x:{ticks:{color:"#8ea0ba",maxRotation:0,autoSkip:true,maxTicksLimit:8},grid:{color:"rgba(255,255,255,0.05)"}},y:{ticks:{color:"#8ea0ba"},grid:{color:"rgba(255,255,255,0.05)"}}}};
 
 function drawPrice(times,closes){
   const bb=bollinger(closes,20,2);
@@ -63,25 +64,32 @@ function drawMacd(times,closes){
   return m;
 }
 
-function supRes(highs,lows,lastClose){
-  const w=Math.min(96,highs.length);
+function supRes(highs,lows,lastClose,tf){
+  const barsPerDay=TF_BARS_PER_DAY[tf]||24;
+  const w=Math.min(barsPerDay,highs.length);
   const hS=highs.slice(-w),lS=lows.slice(-w);
   const maxH=Math.max.apply(null,hS),minL=Math.min.apply(null,lS);
   const pv=(maxH+minL+lastClose)/3;
   return {support:Math.min(2*pv-maxH,minL),resistance:Math.max(2*pv-minL,maxH)};
 }
 
+function fmtLabel(t,tf){
+  if(tf==="1day")return t.slice(0,10);
+  return t.slice(5,16);
+}
+
 async function update(){
   try{
-    const candles=await fetchCandles();
-    const times=candles.map(function(c){return c.time.slice(5,16);});
+    const candles=await fetchCandles(currentTF);
+    const times=candles.map(function(c){return fmtLabel(c.time,currentTF);});
     const closes=candles.map(function(c){return c.close;});
     const highs=candles.map(function(c){return c.high;});
     const lows=candles.map(function(c){return c.low;});
     drawPrice(times,closes);
     const m=drawMacd(times,closes);
     const last=closes[closes.length-1];
-    const prev=closes[Math.max(0,closes.length-96-1)]||closes[0];
+    const barsDay=TF_BARS_PER_DAY[currentTF]||24;
+    const prev=closes[Math.max(0,closes.length-barsDay-1)]||closes[0];
     const diff=last-prev;
     const pct=(diff/prev)*100;
     const live=await fetchRate();
@@ -100,10 +108,29 @@ async function update(){
     if(mN>sN&&rL<70)bias="買い優勢";
     else if(mN<sN&&rL>30)bias="売り優勢";
     el.biasText.textContent=bias;
-    const sr=supRes(highs,lows,last);
+    const sr=supRes(highs,lows,last,currentTF);
     el.supportText.textContent=sr.support.toFixed(3);
     el.resistanceText.textContent=sr.resistance.toFixed(3);
   }catch(e){console.error(e);el.currentRate.textContent="Err";}
 }
-update();
+
+function setActiveTF(tf){
+  currentTF=tf;
+  const btns=el.pills.querySelectorAll(".tf");
+  btns.forEach(function(b){
+    if(b.getAttribute("data-tf")===tf)b.classList.add("active");
+    else b.classList.remove("active");
+  });
+  update();
+}
+
+if(el.pills){
+  el.pills.addEventListener("click",function(ev){
+    const t=ev.target;
+    if(t && t.classList.contains("tf")){
+      setActiveTF(t.getAttribute("data-tf"));
+    }
+  });
+}
+setActiveTF(currentTF);
 setInterval(update,REFRESH_MS);
