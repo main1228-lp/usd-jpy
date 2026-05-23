@@ -88,33 +88,36 @@
       </div>
     </div>
 
-    <!-- ===== 統合サマリーパネル(前日比 + RSI + 判定) ===== -->
+    <!-- ===== 統合サマリーパネル: 非表示中 =====
     <div class="card summary-card">
       <div class="summary-header">マーケットサマリー</div>
       <div class="summary-grid">
-
-        <!-- 前日比 -->
         <div class="summary-cell">
           <div class="summary-label">前日比</div>
           <div class="summary-value-lg" id="dayChange">--</div>
           <div class="summary-sub" id="dayChangePct">--</div>
         </div>
-
-        <!-- RSI(14) -->
         <div class="summary-cell">
           <div class="summary-label">RSI(14)</div>
           <div class="summary-value-md" id="rsiVal">--</div>
           <div class="summary-sub" id="rsiText">--</div>
         </div>
-
-        <!-- 判定 -->
         <div class="summary-cell">
           <div class="summary-label">判定</div>
           <div class="summary-value-md" id="biasText">--</div>
           <div class="summary-sub">MA / MACD / RSI 加味</div>
         </div>
-
       </div>
+    </div>
+    ===== ここまで非表示 ===== -->
+
+    <!-- app.js が参照する要素を hidden で残す(エラー防止) -->
+    <div style="display:none">
+      <span id="dayChange"></span>
+      <span id="dayChangePct"></span>
+      <span id="rsiVal"></span>
+      <span id="rsiText"></span>
+      <span id="biasText"></span>
     </div>
 
     <!-- 通貨強弱メーター -->
