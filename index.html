@@ -18,7 +18,6 @@
     .sub{color:var(--muted);margin-top:6px;font-size:14px}
     .pills{display:flex;gap:10px;flex-wrap:wrap}
     .pill{border:1px solid var(--line);background:rgba(13,21,38,.92);border-radius:999px;padding:8px 12px;color:#b8c7dd;font-size:13px}
-    .summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:12px}
     .card{background:linear-gradient(180deg,rgba(13,21,38,.96),rgba(9,16,29,.96));border:1px solid var(--line);border-radius:18px;padding:14px 16px;box-shadow:0 14px 40px rgba(0,0,0,.22)}
     .label{color:var(--muted);font-size:12px;margin-bottom:8px}
     .value{font-size:28px;font-weight:800;letter-spacing:.02em}
@@ -35,8 +34,39 @@
     .pill.tf{cursor:pointer;background:rgba(13,21,38,.92);color:#b8c7dd;border:1px solid var(--line)}
     .pill.tf:hover{background:rgba(78,161,255,.15)}
     .pill.tf.active{background:rgba(140,200,255,.18);color:#fff;border-color:#4ea1ff}
-    @media (max-width:1100px){.summary,.grid2,.grid1{grid-template-columns:1fr 1fr}.chartbox{height:360px}}
-    @media (max-width:720px){.summary,.grid2,.grid1{grid-template-columns:1fr}.chartbox{height:320px}h1{font-size:22px}}
+
+    /* ===== 統合サマリーパネル ===== */
+    .summary-card{margin-bottom:12px;padding:16px 20px}
+    .summary-header{font-size:12px;color:#8ea0ba;letter-spacing:.06em;margin-bottom:14px;text-transform:uppercase;font-weight:700}
+    .summary-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr 1.2fr;gap:0;align-items:stretch}
+    .summary-cell{display:flex;flex-direction:column;justify-content:center;gap:4px;padding:6px 18px;position:relative}
+    .summary-cell + .summary-cell{border-left:1px solid rgba(255,255,255,.07)}
+    .summary-cell:first-child{padding-left:4px}
+    .summary-cell:last-child{padding-right:4px}
+    .summary-label{font-size:12px;color:#8ea0ba;letter-spacing:.04em}
+    .summary-value-xl{font-size:30px;font-weight:800;color:#cdd9ee;line-height:1.1;font-feature-settings:'tnum'}
+    .summary-value-lg{font-size:24px;font-weight:800;color:#31d27c;line-height:1.1;font-feature-settings:'tnum'}
+    .summary-value-md{font-size:22px;font-weight:700;color:#cdd9ee;line-height:1.2}
+    .summary-sub{font-size:12px;color:#8ea0ba}
+
+    @media (max-width:1100px){
+      .grid2,.grid1{grid-template-columns:1fr 1fr}
+      .chartbox{height:360px}
+      .summary-grid{grid-template-columns:1fr 1fr}
+      .summary-cell + .summary-cell{border-left:none}
+      .summary-cell:nth-child(2){border-left:1px solid rgba(255,255,255,.07)}
+      .summary-cell:nth-child(3),
+      .summary-cell:nth-child(4){border-top:1px solid rgba(255,255,255,.07);padding-top:14px;margin-top:6px}
+      .summary-cell:nth-child(4){border-left:1px solid rgba(255,255,255,.07)}
+      .summary-cell{padding:10px 16px}
+    }
+    @media (max-width:720px){
+      .grid2,.grid1{grid-template-columns:1fr}
+      .chartbox{height:320px}
+      h1{font-size:22px}
+      .summary-grid{grid-template-columns:1fr}
+      .summary-cell + .summary-cell{border-left:none;border-top:1px solid rgba(255,255,255,.07);padding-top:12px;margin-top:6px}
+    }
   </style>
 </head>
 <body>
@@ -60,11 +90,40 @@
       </div>
     </div>
 
-    <div class="summary">
-      <div class="card"><div class="label">現在レート</div><div class="value" id="currentRate">--</div><div class="small">USD/JPY</div></div>
-      <div class="card"><div class="label">前日比</div><div class="value" id="dayChange">--</div><div class="small" id="dayChangePct">--</div></div>
-      <div class="card"><div class="label">RSI(14)</div><div class="value" id="rsiVal">--</div><div class="small" id="rsiText">--</div></div>
-      <div class="card"><div class="label">判定</div><div class="value" style="font-size:16px;margin-bottom:2px" id="biasText">--</div><div class="small">MA / MACD / RSI を加味した簡易判定</div></div>
+    <!-- ===== 統合サマリーパネル（現在レート + 前日比 + RSI + 判定） ===== -->
+    <div class="card summary-card">
+      <div class="summary-header">マーケットサマリー</div>
+      <div class="summary-grid">
+
+        <!-- 現在レート -->
+        <div class="summary-cell">
+          <div class="summary-label">現在レート</div>
+          <div class="summary-value-xl" id="currentRate">--</div>
+          <div class="summary-sub">USD/JPY</div>
+        </div>
+
+        <!-- 前日比 -->
+        <div class="summary-cell">
+          <div class="summary-label">前日比</div>
+          <div class="summary-value-lg" id="dayChange">--</div>
+          <div class="summary-sub" id="dayChangePct">--</div>
+        </div>
+
+        <!-- RSI(14) -->
+        <div class="summary-cell">
+          <div class="summary-label">RSI(14)</div>
+          <div class="summary-value-md" id="rsiVal">--</div>
+          <div class="summary-sub" id="rsiText">--</div>
+        </div>
+
+        <!-- 判定 -->
+        <div class="summary-cell">
+          <div class="summary-label">判定</div>
+          <div class="summary-value-md" id="biasText">--</div>
+          <div class="summary-sub">MA / MACD / RSI 加味</div>
+        </div>
+
+      </div>
     </div>
 
     <!-- 通貨強弱メーター -->
