@@ -1,4 +1,4 @@
-// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定 + 時間帯バッジ + 強制トレンドフィルター + JST表示）
+// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定 + 時間帯バッジ + 強制トレンドフィルター + JST表示 + S/R横線）
 const RATE_URL = "/api/rate";
 const REFRESH_MS = 3 * 60 * 1000;
 
@@ -13,8 +13,6 @@ const el = {
   rsiVal: $("rsiVal"),
   rsiText: $("rsiText"),
   biasText: $("biasText"),
-  supportText: $("supportText"),
-  resistanceText: $("resistanceText"),
   priceCanvas: $("priceChart"),
   macdCanvas: $("macdChart"),
   pills: $("intervalPills")
@@ -59,14 +57,14 @@ function perfectOrder(closes){
   const orderDown = a5<a25 && a25<a75;
   const allUp     = s5>0 && s25>0 && s75>0;
   const allDown   = s5<0 && s25<0 && s75<0;
-  if(orderUp && allUp)     return {kind:"po_up",  label:"🟢 パーフェクトオーダー（上）強い上昇トレンド", color:"#31d27c", bonus:+1};
-  if(orderDown && allDown) return {kind:"po_dn",  label:"🔴 パーフェクトオーダー（下）強い下降トレンド", color:"#ff6b6b", bonus:-1};
-  if(orderUp)              return {kind:"semi_up",label:"🟡 準PO（上）弱い上昇 — 様子見", color:"#f5c451", bonus:0};
-  if(orderDown)            return {kind:"semi_dn",label:"🟡 準PO（下）弱い下降 — 様子見", color:"#f5c451", bonus:0};
+  if(orderUp && allUp)     return {kind:"po_up",  label:"🟢 パーフェクトオーダー(上)強い上昇トレンド", color:"#31d27c", bonus:+1};
+  if(orderDown && allDown) return {kind:"po_dn",  label:"🔴 パーフェクトオーダー(下)強い下降トレンド", color:"#ff6b6b", bonus:-1};
+  if(orderUp)              return {kind:"semi_up",label:"🟡 準PO(上) 弱い上昇 — 様子見", color:"#f5c451", bonus:0};
+  if(orderDown)            return {kind:"semi_dn",label:"🟡 準PO(下) 弱い下降 — 様子見", color:"#f5c451", bonus:0};
   return {kind:"none", label:"⚪ MA乱れ — レンジ相場 (エントリー非推奨)", color:"#8ea0ba", bonus:0};
 }
 
-// === 時間帯バッジ（及川式：セッション切替を強く意識） ===
+// === 時間帯バッジ ===
 function getSession(){
   const now = new Date();
   const utc = now.getTime() + now.getTimezoneOffset()*60000;
@@ -82,17 +80,17 @@ function getSession(){
   }else if(h>=9 && h<15){
     main = "🗼 東京セッション"; color = "#31d27c"; kind = "high";
   }else if(h>=17 && h<21){
-    main = "🇪🇺 欧州（ロンドン）"; color = "#4ea1ff"; kind = "high";
+    main = "🇪🇺 欧州(ロンドン)"; color = "#4ea1ff"; kind = "high";
   }else if(h>=1 && h<6){
     main = "🗽 NYセッション後半"; color = "#8cc8ff"; kind = "mid";
   }else{
-    main = "🌙 アジア早朝（薄商い）"; color = "#8ea0ba"; kind = "low";
+    main = "🌙 アジア早朝(薄商い)"; color = "#8ea0ba"; kind = "low";
   }
 
   let flash = "", flashColor = "";
   if(m>=55 || m<=5){
     const nextH = m>=55 ? (h+1)%24 : h;
-    flash = "🔔 時間切替中（"+String(nextH).padStart(2,"0")+":00 前後）";
+    flash = "🔔 時間切替中("+String(nextH).padStart(2,"0")+":00 前後)";
     flashColor = "#f5c451";
   }
   const keyHours = [0,9,15,17,21];
@@ -166,41 +164,41 @@ function computeSignal(candles){
   if(po.kind==="po_dn") shortScore++;
 
   const maxScore = 5;
-  let action="WAIT（待機）", color="#f5c451", tp=null, sl=null,
+  let action="WAIT(待機)", color="#f5c451", tp=null, sl=null,
       reason="シグナル不一致 — ポジション見送り";
   if(longScore>=4){
-    action="LONG（買い）★強"; color="#31d27c";
+    action="LONG(買い)★強"; color="#31d27c";
     tp=price+atrV*2.5; sl=price-atrV*1;
     reason="MA上昇 / MACD強気 / RSI中立超 / BB上 / PO一致";
   }else if(longScore>=3){
-    action="LONG（買い）"; color="#31d27c";
+    action="LONG(買い)"; color="#31d27c";
     tp=price+atrV*2; sl=price-atrV*1;
     reason="MA上昇 / MACD強気 / RSI中立超 / BB上";
   }else if(shortScore>=4){
-    action="SHORT（売り）★強"; color="#ff6b6b";
+    action="SHORT(売り)★強"; color="#ff6b6b";
     tp=price-atrV*2.5; sl=price+atrV*1;
     reason="MA下降 / MACD弱気 / RSI中立未 / BB下 / PO一致";
   }else if(shortScore>=3){
-    action="SHORT（売り）"; color="#ff6b6b";
+    action="SHORT(売り)"; color="#ff6b6b";
     tp=price-atrV*2; sl=price+atrV*1;
     reason="MA下降 / MACD弱気 / RSI中立未 / BB下";
   }
 
-  // === 強制トレンドフィルター（常時オン） ===
+  // === 強制トレンドフィルター ===
   if(po.kind !== "po_up" && po.kind !== "po_dn"){
-    action = "WAIT（PO不成立・エントリー禁止）";
+    action = "WAIT(PO不成立・エントリー禁止)";
     color  = "#8ea0ba";
     tp = null; sl = null;
     reason = "パーフェクトオーダー未成立 — 及川式フィルターで強制待機";
   }
   if(action.indexOf("LONG")===0 && po.kind === "po_dn"){
-    action = "WAIT（方向矛盾・エントリー禁止）";
+    action = "WAIT(方向矛盾・エントリー禁止)";
     color  = "#8ea0ba";
     tp = null; sl = null;
     reason = "シグナルは買いだがPOは下降 — 矛盾のため強制待機";
   }
   if(action.indexOf("SHORT")===0 && po.kind === "po_up"){
-    action = "WAIT（方向矛盾・エントリー禁止）";
+    action = "WAIT(方向矛盾・エントリー禁止)";
     color  = "#8ea0ba";
     tp = null; sl = null;
     reason = "シグナルは売りだがPOは上昇 — 矛盾のため強制待機";
@@ -271,7 +269,7 @@ function drawStrength(s){
   const top=sorted[0], bot=sorted[sorted.length-1];
   const hint=document.getElementById("strengthHint");
   if(hint && top && bot && (top.v-bot.v)>0.1){
-    hint.textContent="推奨方向: "+top.c+"買い / "+bot.c+"売り（例: "+top.c+"/"+bot.c+"）";
+    hint.textContent="推奨方向: "+top.c+"買い / "+bot.c+"売り(例: "+top.c+"/"+bot.c+")";
     hint.style.color="#f5c451";
   }else if(hint){
     hint.textContent="強弱差が小さい — 様子見推奨";
@@ -291,11 +289,30 @@ function parseJST(timeStr){
   return new Date(s + "+09:00").getTime();
 }
 
+function supRes(highs,lows,lastClose,tf){
+  const barsPerDay=TF_BARS_PER_DAY[tf]||24;
+  const w=Math.min(barsPerDay,highs.length);
+  const hS=highs.slice(-w),lS=lows.slice(-w);
+  const maxH=Math.max.apply(null,hS),minL=Math.min.apply(null,lS);
+  const pv=(maxH+minL+lastClose)/3;
+  return {support:Math.min(2*pv-maxH,minL),resistance:Math.max(2*pv-minL,maxH)};
+}
+
 function drawPrice(candles){
   const closes=candles.map(function(c){return c.close;});
+  const highs=candles.map(function(c){return c.high;});
+  const lows=candles.map(function(c){return c.low;});
   const labels=candles.map(function(c){return c.time;});
   const bb=bollinger(closes,20,2);
   const ohlc=candles.map(function(c){return {x:parseJST(c.time),o:c.open,h:c.high,l:c.low,c:c.close};});
+
+  // === サポート/レジスタンス計算 ===
+  const sr = supRes(highs, lows, closes[closes.length-1], currentTF);
+  const xMin = parseJST(labels[0]);
+  const xMax = parseJST(labels[labels.length-1]);
+  const supLine = [{x:xMin, y:sr.support},  {x:xMax, y:sr.support}];
+  const resLine = [{x:xMin, y:sr.resistance},{x:xMax, y:sr.resistance}];
+
   const data={datasets:[
     {type:"candlestick",label:"USD/JPY",data:ohlc,
       color:{up:"#31d27c",down:"#ff6b6b",unchanged:"#8ea0ba"},
@@ -304,8 +321,13 @@ function drawPrice(candles){
     {type:"line",label:"25MA",data:labels.map(function(t,i){return {x:parseJST(t),y:sma(closes,25)[i]};}),borderColor:"#f5c451",borderWidth:1,pointRadius:0},
     {type:"line",label:"75MA",data:labels.map(function(t,i){return {x:parseJST(t),y:sma(closes,75)[i]};}),borderColor:"#ff8aa5",borderWidth:1,pointRadius:0},
     {type:"line",label:"BB+",data:labels.map(function(t,i){return {x:parseJST(t),y:bb.up[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]},
-    {type:"line",label:"BB-",data:labels.map(function(t,i){return {x:parseJST(t),y:bb.lo[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]}
+    {type:"line",label:"BB-",data:labels.map(function(t,i){return {x:parseJST(t),y:bb.lo[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]},
+    {type:"line",label:"サポート "+sr.support.toFixed(3),data:supLine,
+      borderColor:"#31d27c",borderWidth:2,pointRadius:0,borderDash:[8,4]},
+    {type:"line",label:"レジスタンス "+sr.resistance.toFixed(3),data:resLine,
+      borderColor:"#ff6b6b",borderWidth:2,pointRadius:0,borderDash:[8,4]}
   ]};
+
   const opts={
     responsive:true,maintainAspectRatio:false,animation:false,
     plugins:{
@@ -343,7 +365,7 @@ function drawPrice(candles){
   priceChart=new Chart(el.priceCanvas,{type:"candlestick",data:data,options:opts});
 }
 
-// === MACD描画（安全版：canvasが無ければ静かにスキップ） ===
+// === MACD描画 ===
 function drawMacd(times,closes){
   const m=macdCalc(closes);
   const canvas = document.getElementById("macdChart");
@@ -358,15 +380,6 @@ function drawMacd(times,closes){
   return m;
 }
 
-function supRes(highs,lows,lastClose,tf){
-  const barsPerDay=TF_BARS_PER_DAY[tf]||24;
-  const w=Math.min(barsPerDay,highs.length);
-  const hS=highs.slice(-w),lS=lows.slice(-w);
-  const maxH=Math.max.apply(null,hS),minL=Math.min.apply(null,lS);
-  const pv=(maxH+minL+lastClose)/3;
-  return {support:Math.min(2*pv-maxH,minL),resistance:Math.max(2*pv-minL,maxH)};
-}
-
 function fmtLabel(t,tf){
   if(tf==="1day")return t.slice(0,10);
   return t.slice(5,16);
@@ -378,8 +391,6 @@ async function update(){
     const candles=await fetchCandles(currentTF);
     const times=candles.map(function(c){return fmtLabel(c.time,currentTF);});
     const closes=candles.map(function(c){return c.close;});
-    const highs=candles.map(function(c){return c.high;});
-    const lows=candles.map(function(c){return c.low;});
     drawPrice(candles);
     const m=drawMacd(times,closes);
     const last=closes[closes.length-1];
@@ -403,9 +414,6 @@ async function update(){
     if(mN>sN&&rL<70)bias="買い優勢";
     else if(mN<sN&&rL>30)bias="売り優勢";
     el.biasText.textContent=bias;
-    const sr=supRes(highs,lows,last,currentTF);
-    el.supportText.textContent=sr.support.toFixed(3);
-    el.resistanceText.textContent=sr.resistance.toFixed(3);
     computeSignal(candles);
     const strength=await fetchStrength();
     if(strength)drawStrength(strength);
