@@ -1,4 +1,4 @@
-// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定 + 時間帯バッジ + 強制トレンドフィルター + JST表示 + S/R横線 + 現在レート線 + ライブ足high/low同時更新 + 右側余白）
+// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定 + 時間帯バッジ + 強制トレンドフィルター + JST表示 + S/R横線 + 現在レート線 + ライブ足high/low同時更新 + 最新ローソク右1/3配置）
 const RATE_URL = "/api/rate";
 const REFRESH_MS = 3 * 60 * 1000;
 
@@ -305,13 +305,18 @@ function drawPrice(candles){
   const bb=bollinger(closes,20,2);
   const ohlc=candles.map(function(c){return {x:parseJST(c.time),o:c.open,h:c.high,l:c.low,c:c.close};});
 
-  // === S/R + 現在レート + 右側余白(全期間の1/3) ===
+  // === S/R + 現在レート ===
   const sr = supRes(highs, lows, closes[closes.length-1], currentTF);
   const last = closes[closes.length-1];
   const xMin = parseJST(labels[0]);
   const xMax = parseJST(labels[labels.length-1]);
-  const totalSpan  = xMax - xMin;
-  const xMaxPadded = xMax + totalSpan * 0.33;
+
+  // === 最新ローソクを画面右1/3地点に配置(可視範囲 = 余白×3) ===
+  const totalSpan   = xMax - xMin;
+  const rightPad    = totalSpan * 0.5;       // 余白量(調整可)
+  const xMaxPadded  = xMax + rightPad;       // 右端
+  const xMinVisible = xMax - rightPad * 2;   // 左端(最新から余白×2だけ過去)
+
   const supLine  = [{x:xMin, y:sr.support},     {x:xMaxPadded, y:sr.support}];
   const resLine  = [{x:xMin, y:sr.resistance},  {x:xMaxPadded, y:sr.resistance}];
   const rateLine = [{x:xMin, y:last},           {x:xMaxPadded, y:last}];
@@ -351,7 +356,7 @@ function drawPrice(candles){
       x:{
         type:"timeseries",
         adapters:{ date:{ zone:"Asia/Tokyo" } },
-        min: xMin,
+        min: xMinVisible,
         max: xMaxPadded,
         time:{
           displayFormats:{
