@@ -1,4 +1,4 @@
-// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定 + 時間帯バッジ + 強制トレンドフィルター）
+// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定 + 時間帯バッジ + 強制トレンドフィルター + JST表示）
 const RATE_URL = "/api/rate";
 const REFRESH_MS = 3 * 60 * 1000;
 
@@ -281,26 +281,61 @@ function drawStrength(s){
 
 const baseOpts={responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:"index",intersect:false},plugins:{legend:{labels:{color:"#cdd9ee"}}},scales:{x:{ticks:{color:"#8ea0ba",maxRotation:0,autoSkip:true,maxTicksLimit:8},grid:{color:"rgba(255,255,255,0.05)"}},y:{ticks:{color:"#8ea0ba"},grid:{color:"rgba(255,255,255,0.05)"}}}};
 
+// === APIの時刻文字列を「JST」として解釈してミリ秒に変換 ===
+function parseJST(timeStr){
+  if(!timeStr) return Date.now();
+  const s = String(timeStr).replace(" ", "T");
+  if(s.indexOf("Z")>=0 || /[+-]\d{2}:?\d{2}$/.test(s)){
+    return new Date(s).getTime();
+  }
+  return new Date(s + "+09:00").getTime();
+}
+
 function drawPrice(candles){
   const closes=candles.map(function(c){return c.close;});
   const labels=candles.map(function(c){return c.time;});
   const bb=bollinger(closes,20,2);
-  const ohlc=candles.map(function(c){return {x:new Date(c.time).getTime(),o:c.open,h:c.high,l:c.low,c:c.close};});
+  const ohlc=candles.map(function(c){return {x:parseJST(c.time),o:c.open,h:c.high,l:c.low,c:c.close};});
   const data={datasets:[
     {type:"candlestick",label:"USD/JPY",data:ohlc,
       color:{up:"#31d27c",down:"#ff6b6b",unchanged:"#8ea0ba"},
       borderColor:{up:"#31d27c",down:"#ff6b6b",unchanged:"#8ea0ba"}},
-    {type:"line",label:"5MA",data:labels.map(function(t,i){return {x:new Date(t).getTime(),y:sma(closes,5)[i]};}),borderColor:"#31d27c",borderWidth:1,pointRadius:0},
-    {type:"line",label:"25MA",data:labels.map(function(t,i){return {x:new Date(t).getTime(),y:sma(closes,25)[i]};}),borderColor:"#f5c451",borderWidth:1,pointRadius:0},
-    {type:"line",label:"75MA",data:labels.map(function(t,i){return {x:new Date(t).getTime(),y:sma(closes,75)[i]};}),borderColor:"#ff8aa5",borderWidth:1,pointRadius:0},
-    {type:"line",label:"BB+",data:labels.map(function(t,i){return {x:new Date(t).getTime(),y:bb.up[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]},
-    {type:"line",label:"BB-",data:labels.map(function(t,i){return {x:new Date(t).getTime(),y:bb.lo[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]}
+    {type:"line",label:"5MA",data:labels.map(function(t,i){return {x:parseJST(t),y:sma(closes,5)[i]};}),borderColor:"#31d27c",borderWidth:1,pointRadius:0},
+    {type:"line",label:"25MA",data:labels.map(function(t,i){return {x:parseJST(t),y:sma(closes,25)[i]};}),borderColor:"#f5c451",borderWidth:1,pointRadius:0},
+    {type:"line",label:"75MA",data:labels.map(function(t,i){return {x:parseJST(t),y:sma(closes,75)[i]};}),borderColor:"#ff8aa5",borderWidth:1,pointRadius:0},
+    {type:"line",label:"BB+",data:labels.map(function(t,i){return {x:parseJST(t),y:bb.up[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]},
+    {type:"line",label:"BB-",data:labels.map(function(t,i){return {x:parseJST(t),y:bb.lo[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]}
   ]};
   const opts={
     responsive:true,maintainAspectRatio:false,animation:false,
-    plugins:{legend:{labels:{color:"#cdd9ee"}}},
+    plugins:{
+      legend:{labels:{color:"#cdd9ee"}},
+      tooltip:{
+        callbacks:{
+          title:function(items){
+            if(!items.length) return "";
+            const d = new Date(items[0].parsed.x);
+            return d.toLocaleString("ja-JP", {timeZone:"Asia/Tokyo", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit"}) + " JST";
+          }
+        }
+      }
+    },
     scales:{
-      x:{type:"timeseries",ticks:{color:"#8ea0ba",maxRotation:0,autoSkip:true,maxTicksLimit:8},grid:{color:"rgba(255,255,255,0.05)"}},
+      x:{
+        type:"timeseries",
+        adapters:{ date:{ zone:"Asia/Tokyo" } },
+        time:{
+          displayFormats:{
+            minute:"HH:mm",
+            hour:"M/d HH:mm",
+            day:"M/d",
+            week:"M/d",
+            month:"yyyy-MM"
+          }
+        },
+        ticks:{color:"#8ea0ba",maxRotation:0,autoSkip:true,maxTicksLimit:8},
+        grid:{color:"rgba(255,255,255,0.05)"}
+      },
       y:{ticks:{color:"#8ea0ba"},grid:{color:"rgba(255,255,255,0.05)"}}
     }
   };
