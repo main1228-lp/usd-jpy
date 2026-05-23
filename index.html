@@ -32,6 +32,9 @@
     .stat{border:1px solid var(--line);background:rgba(7,13,24,.55);border-radius:14px;padding:12px}
     .stat .k{color:var(--muted);font-size:12px;margin-bottom:6px}
     .stat .v{font-size:18px;font-weight:800}
+    .pill.tf{cursor:pointer;background:rgba(13,21,38,.92);color:#b8c7dd;border:1px solid var(--line)}
+    .pill.tf:hover{background:rgba(78,161,255,.15)}
+    .pill.tf.active{background:rgba(140,200,255,.18);color:#fff;border-color:#4ea1ff}
     @media (max-width:1100px){.summary,.grid2,.grid1{grid-template-columns:1fr 1fr}.chartbox{height:360px}}
     @media (max-width:720px){.summary,.grid2,.grid1{grid-template-columns:1fr}.chartbox{height:320px}h1{font-size:22px}}
   </style>
@@ -43,10 +46,11 @@
         <h1>USD/JPY テクニカル分析ダッシュボード</h1>
         <div class="sub">直近5日分のローソク足 / MACD / ボリンジャーバンド / 本日の重要経済指標</div>
       </div>
-      <div class="pills">
-        <div class="pill">Vercel Ready</div>
-        <div class="pill">15秒/60秒更新</div>
-        <div class="pill">iPhone対応</div>
+      <div class="pills" id="intervalPills">
+        <button class="pill tf" data-tf="5min">5分</button>
+        <button class="pill tf" data-tf="1h">1時間</button>
+        <button class="pill tf" data-tf="4h">4時間</button>
+        <button class="pill tf" data-tf="1day">1日</button>
       </div>
     </div>
 
