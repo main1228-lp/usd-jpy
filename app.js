@@ -1,9 +1,10 @@
-// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定 + 時間帯バッジ + 強制トレンドフィルター + JST表示 + S/R横線 + 現在レート線 + ライブ足high/low同時更新 + 最新ローソク右1/3配置）
+// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定 + 時間帯バッジ + 強制トレンドフィルター + JST表示 + S/R横線 + 現在レート線 + ライブ足high/low同時更新 + ダミーローソクで右余白強制確保）
 const RATE_URL = "/api/rate";
 const REFRESH_MS = 3 * 60 * 1000;
 
 let currentTF = "5min";
 const TF_BARS_PER_DAY = { "5min":288, "1h":24, "4h":6, "1day":1 };
+const TF_MS = { "5min":5*60*1000, "1h":60*60*1000, "4h":4*60*60*1000, "1day":24*60*60*1000 };
 
 const $ = function(id){ return document.getElementById(id); };
 const el = {
@@ -303,33 +304,39 @@ function drawPrice(candles){
   const lows=candles.map(function(c){return c.low;});
   const labels=candles.map(function(c){return c.time;});
   const bb=bollinger(closes,20,2);
+
+  // === 実データのOHLC ===
   const ohlc=candles.map(function(c){return {x:parseJST(c.time),o:c.open,h:c.high,l:c.low,c:c.close};});
 
-  // === S/R + 現在レート ===
-  const sr = supRes(highs, lows, closes[closes.length-1], currentTF);
-  const last = closes[closes.length-1];
+  // === 時間足ごとの1本あたりミリ秒 ===
+  const tfMs = TF_MS[currentTF] || 5*60*1000;
+
+  // === 未来側にダミーローソク(高さ0)を追加して右側余白を強制確保 ===
+  const lastTime = parseJST(labels[labels.length-1]);
+  const last     = closes[closes.length-1];
+  const futureBars = Math.floor(candles.length / 2);  // 余白量 = 表示本数の約半分 → 右1/3余白
+  for(let i=1; i<=futureBars; i++){
+    const t = lastTime + tfMs * i;
+    ohlc.push({x:t, o:null, h:null, l:null, c:null}); // 透明・描画されない
+  }
+
+  // === S/R + 現在レート(未来側まで線を伸ばす) ===
+  const sr = supRes(highs, lows, last, currentTF);
   const xMin = parseJST(labels[0]);
-  const xMax = parseJST(labels[labels.length-1]);
-
-  // === 最新ローソクを画面右1/3地点に配置(可視範囲 = 余白×3) ===
-  const totalSpan   = xMax - xMin;
-  const rightPad    = totalSpan * 0.5;       // 余白量(調整可)
-  const xMaxPadded  = xMax + rightPad;       // 右端
-  const xMinVisible = xMax - rightPad * 2;   // 左端(最新から余白×2だけ過去)
-
-  const supLine  = [{x:xMin, y:sr.support},     {x:xMaxPadded, y:sr.support}];
-  const resLine  = [{x:xMin, y:sr.resistance},  {x:xMaxPadded, y:sr.resistance}];
-  const rateLine = [{x:xMin, y:last},           {x:xMaxPadded, y:last}];
+  const xMaxFuture = lastTime + tfMs * futureBars;
+  const supLine  = [{x:xMin, y:sr.support},     {x:xMaxFuture, y:sr.support}];
+  const resLine  = [{x:xMin, y:sr.resistance},  {x:xMaxFuture, y:sr.resistance}];
+  const rateLine = [{x:xMin, y:last},           {x:xMaxFuture, y:last}];
 
   const data={datasets:[
     {type:"candlestick",label:"USD/JPY",data:ohlc,
       color:{up:"#31d27c",down:"#ff6b6b",unchanged:"#8ea0ba"},
       borderColor:{up:"#31d27c",down:"#ff6b6b",unchanged:"#8ea0ba"}},
-    {type:"line",label:"5MA",data:labels.map(function(t,i){return {x:parseJST(t),y:sma(closes,5)[i]};}),borderColor:"#31d27c",borderWidth:1,pointRadius:0},
-    {type:"line",label:"25MA",data:labels.map(function(t,i){return {x:parseJST(t),y:sma(closes,25)[i]};}),borderColor:"#f5c451",borderWidth:1,pointRadius:0},
-    {type:"line",label:"75MA",data:labels.map(function(t,i){return {x:parseJST(t),y:sma(closes,75)[i]};}),borderColor:"#ff8aa5",borderWidth:1,pointRadius:0},
-    {type:"line",label:"BB+",data:labels.map(function(t,i){return {x:parseJST(t),y:bb.up[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]},
-    {type:"line",label:"BB-",data:labels.map(function(t,i){return {x:parseJST(t),y:bb.lo[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]},
+    {type:"line",label:"5MA",data:labels.map(function(t,i){return {x:parseJST(t),y:sma(closes,5)[i]};}),borderColor:"#31d27c",borderWidth:1,pointRadius:0,spanGaps:true},
+    {type:"line",label:"25MA",data:labels.map(function(t,i){return {x:parseJST(t),y:sma(closes,25)[i]};}),borderColor:"#f5c451",borderWidth:1,pointRadius:0,spanGaps:true},
+    {type:"line",label:"75MA",data:labels.map(function(t,i){return {x:parseJST(t),y:sma(closes,75)[i]};}),borderColor:"#ff8aa5",borderWidth:1,pointRadius:0,spanGaps:true},
+    {type:"line",label:"BB+",data:labels.map(function(t,i){return {x:parseJST(t),y:bb.up[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4],spanGaps:true},
+    {type:"line",label:"BB-",data:labels.map(function(t,i){return {x:parseJST(t),y:bb.lo[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4],spanGaps:true},
     {type:"line",label:"サポート "+sr.support.toFixed(3),data:supLine,
       borderColor:"#31d27c",borderWidth:2,pointRadius:0,borderDash:[8,4]},
     {type:"line",label:"レジスタンス "+sr.resistance.toFixed(3),data:resLine,
@@ -343,6 +350,7 @@ function drawPrice(candles){
     plugins:{
       legend:{labels:{color:"#cdd9ee"}},
       tooltip:{
+        filter:function(item){ return item.parsed && item.parsed.y !== null; },  // ダミーをツールチップから除外
         callbacks:{
           title:function(items){
             if(!items.length) return "";
@@ -356,8 +364,6 @@ function drawPrice(candles){
       x:{
         type:"timeseries",
         adapters:{ date:{ zone:"Asia/Tokyo" } },
-        min: xMinVisible,
-        max: xMaxPadded,
         time:{
           displayFormats:{
             minute:"HH:mm",
