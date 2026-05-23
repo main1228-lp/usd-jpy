@@ -27,6 +27,70 @@ function rsi(a,p){p=p||14;const o=Array(a.length).fill(null);let g=0,l=0;for(let
 function macdCalc(a){const e12=ema(a,12),e26=ema(a,26);const line=a.map(function(_,i){return e12[i]-e26[i];});const sig=ema(line,9);const hist=line.map(function(v,i){return v-sig[i];});return {line:line,signal:sig,hist:hist};}
 function bollinger(a,p,m){p=p||20;m=m||2;const mid=sma(a,p);const up=Array(a.length).fill(null);const lo=Array(a.length).fill(null);for(let i=p-1;i<a.length;i++){const sl=a.slice(i-p+1,i+1);const av=mid[i];const v=sl.reduce(function(s,x){return s+(x-av)*(x-av);},0)/p;const sd=Math.sqrt(v);up[i]=av+m*sd;lo[i]=av-m*sd;}return {mid:mid,up:up,lo:lo};}
 
+function atr(candles,p){
+  const out=[];let sum=0;
+  for(let i=0;i<candles.length;i++){
+    if(i===0){out.push(null);continue;}
+    const h=candles[i].high,l=candles[i].low,pc=candles[i-1].close;
+    const tr=Math.max(h-l,Math.abs(h-pc),Math.abs(l-pc));
+    sum+=tr;
+    if(i<p){out.push(null);continue;}
+    if(i>p){sum-=Math.max(candles[i-p].high-candles[i-p].low,
+      Math.abs(candles[i-p].high-candles[i-p-1].close),
+      Math.abs(candles[i-p].low-candles[i-p-1].close));}
+    out.push(sum/p);
+  }
+  return out;
+}
+
+function computeSignal(candles){
+  const n=candles.length-1;
+  const closes=candles.map(function(c){return c.close;});
+  const price=closes[n];
+  const ma5=sma(closes,5)[n], ma25=sma(closes,25)[n], ma75=sma(closes,75)[n];
+  const bb=bollinger(closes,20,2);
+  const mid=bb.ma[n];
+  const m=macd(closes);
+  const macdV=m.macd[n], sigV=m.signal[n], histV=m.hist[n];
+  const rsiV=rsi(closes,14)[n];
+  const atrV=atr(candles,14)[n]||0.05;
+
+  let longScore=0, shortScore=0;
+  if(ma5>ma25 && ma25>ma75) longScore++;
+  if(ma5<ma25 && ma25<ma75) shortScore++;
+  if(macdV>sigV && histV>0) longScore++;
+  if(macdV<sigV && histV<0) shortScore++;
+  if(rsiV>50 && rsiV<70) longScore++;
+  if(rsiV<50 && rsiV>30) shortScore++;
+  if(price>mid) longScore++;
+  if(price<mid) shortScore++;
+
+  let action="WAIT", color="#8ea0ba", tp=null, sl=null, reason="";
+  if(longScore>=3){
+    action="LONG（買い）";color="#31d27c";
+    tp=price+atrV*2; sl=price-atrV*1;
+    reason="MA上昇 / MACD強気 / RSI中立超 / BB上";
+  }else if(shortScore>=3){
+    action="SHORT（売り）";color="#ff6b6b";
+    tp=price-atrV*2; sl=price+atrV*1;
+    reason="MA下降 / MACD弱気 / RSI中立未 / BB下";
+  }else{
+    action="WAIT（待機）";color="#f5c451";
+    reason="シグナル不一致 — ポジション見送り";
+  }
+
+  const fmt=function(v){return v==null?"--":v.toFixed(3);};
+  const el=document.getElementById;
+  document.getElementById("signalAction").textContent=action;
+  document.getElementById("signalAction").style.color=color;
+  document.getElementById("signalReason").textContent=reason;
+  document.getElementById("sigEntry").textContent=fmt(price);
+  document.getElementById("sigTP").textContent=fmt(tp);
+  document.getElementById("sigSL").textContent=fmt(sl);
+  document.getElementById("sigScore").textContent=Math.max(longScore,shortScore)+"/4";
+  document.getElementById("signalCard").style.borderColor=color;
+}
+
 async function fetchCandles(tf){
   const url="/api/candles?interval="+tf+"&outputsize=200";
   const r=await fetch(url,{cache:"no-store"});
