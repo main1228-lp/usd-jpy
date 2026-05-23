@@ -1,4 +1,4 @@
-// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定）
+// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定 + 時間帯バッジ）
 const RATE_URL = "/api/rate";
 const REFRESH_MS = 3 * 60 * 1000;
 
@@ -43,32 +43,100 @@ function atr(candles,p){
   return out;
 }
 
-// === パーフェクトオーダー判定（及川式の核心） ===
 function perfectOrder(closes){
   const n = closes.length-1;
   if(n<76) return {kind:"none", label:"データ不足", color:"#8ea0ba", bonus:0};
-
   const ma5  = sma(closes,5);
   const ma25 = sma(closes,25);
   const ma75 = sma(closes,75);
-
   const a5=ma5[n], a25=ma25[n], a75=ma75[n];
   const slope = function(arr){
     if(n<3 || arr[n-3]==null) return 0;
     return arr[n] - arr[n-3];
   };
   const s5=slope(ma5), s25=slope(ma25), s75=slope(ma75);
-
   const orderUp   = a5>a25 && a25>a75;
   const orderDown = a5<a25 && a25<a75;
   const allUp     = s5>0 && s25>0 && s75>0;
   const allDown   = s5<0 && s25<0 && s75<0;
-
   if(orderUp && allUp)     return {kind:"po_up",  label:"🟢 パーフェクトオーダー（上）強い上昇トレンド", color:"#31d27c", bonus:+1};
   if(orderDown && allDown) return {kind:"po_dn",  label:"🔴 パーフェクトオーダー（下）強い下降トレンド", color:"#ff6b6b", bonus:-1};
   if(orderUp)              return {kind:"semi_up",label:"🟡 準PO（上）弱い上昇 — 様子見", color:"#f5c451", bonus:0};
   if(orderDown)            return {kind:"semi_dn",label:"🟡 準PO（下）弱い下降 — 様子見", color:"#f5c451", bonus:0};
   return {kind:"none", label:"⚪ MA乱れ — レンジ相場 (エントリー非推奨)", color:"#8ea0ba", bonus:0};
+}
+
+// === 時間帯バッジ（及川式：セッション切替を強く意識） ===
+function getSession(){
+  const now = new Date();
+  const utc = now.getTime() + now.getTimezoneOffset()*60000;
+  const jst = new Date(utc + 9*3600000);
+  const h = jst.getHours();
+  const m = jst.getMinutes();
+
+  let main, color, kind;
+  if(h>=21 || h<1){
+    main = "⚡ 欧州/NYオーバーラップ"; color = "#ff6b6b"; kind = "best";
+  }else if(h>=15 && h<17){
+    main = "⚡ 東京/欧州オーバーラップ"; color = "#f5c451"; kind = "best";
+  }else if(h>=9 && h<15){
+    main = "🗼 東京セッション"; color = "#31d27c"; kind = "high";
+  }else if(h>=17 && h<21){
+    main = "🇪🇺 欧州（ロンドン）"; color = "#4ea1ff"; kind = "high";
+  }else if(h>=1 && h<6){
+    main = "🗽 NYセッション後半"; color = "#8cc8ff"; kind = "mid";
+  }else{
+    main = "🌙 アジア早朝（薄商い）"; color = "#8ea0ba"; kind = "low";
+  }
+
+  let flash = "", flashColor = "";
+  if(m>=55 || m<=5){
+    const nextH = m>=55 ? (h+1)%24 : h;
+    flash = "🔔 時間切替中（"+String(nextH).padStart(2,"0")+":00 前後）";
+    flashColor = "#f5c451";
+  }
+  const keyHours = [0,9,15,17,21];
+  if(keyHours.indexOf(h)>=0 && m<=10){
+    flash = "🔥 重要セッション切替直後 ("+String(h).padStart(2,"0")+":00)";
+    flashColor = "#ff6b6b";
+  }
+  if(keyHours.indexOf((h+1)%24)>=0 && m>=50){
+    flash = "🔥 重要セッション切替直前 ("+String((h+1)%24).padStart(2,"0")+":00)";
+    flashColor = "#ff6b6b";
+  }
+
+  return {
+    main: main, color: color, kind: kind,
+    flash: flash, flashColor: flashColor,
+    timeStr: String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+" JST"
+  };
+}
+
+function drawSession(){
+  const s = getSession();
+  const nowEl = document.getElementById("sessionNow");
+  const flashEl = document.getElementById("sessionFlash");
+  const timeEl = document.getElementById("sessionTime");
+  if(nowEl){
+    nowEl.textContent = s.main;
+    nowEl.style.background = s.color + "22";
+    nowEl.style.color = s.color;
+    nowEl.style.border = "1px solid " + s.color + "66";
+  }
+  if(flashEl){
+    if(s.flash){
+      flashEl.textContent = s.flash;
+      flashEl.style.background = s.flashColor + "22";
+      flashEl.style.color = s.flashColor;
+      flashEl.style.border = "1px solid " + s.flashColor + "66";
+      flashEl.style.fontWeight = "700";
+    }else{
+      flashEl.textContent = "";
+      flashEl.style.background = "transparent";
+      flashEl.style.border = "none";
+    }
+  }
+  if(timeEl){ timeEl.textContent = "現在: " + s.timeStr; }
 }
 
 function computeSignal(candles){
@@ -94,13 +162,10 @@ function computeSignal(candles){
   if(rsiV<50 && rsiV>30) shortScore++;
   if(price>mid) longScore++;
   if(price<mid) shortScore++;
-
-  // PO ボーナス
   if(po.kind==="po_up") longScore++;
   if(po.kind==="po_dn") shortScore++;
 
   const maxScore = 5;
-
   let action="WAIT（待機）", color="#f5c451", tp=null, sl=null,
       reason="シグナル不一致 — ポジション見送り";
   if(longScore>=4){
@@ -132,7 +197,6 @@ function computeSignal(candles){
   document.getElementById("sigScore").textContent=Math.max(longScore,shortScore)+"/"+maxScore;
   document.getElementById("signalCard").style.borderColor=color;
 
-  // PO バッジ表示
   const poEl = document.getElementById("perfectOrder");
   if(poEl){
     poEl.textContent = po.label;
@@ -202,7 +266,6 @@ function drawPrice(candles){
   const labels=candles.map(function(c){return c.time;});
   const bb=bollinger(closes,20,2);
   const ohlc=candles.map(function(c){return {x:new Date(c.time).getTime(),o:c.open,h:c.high,l:c.low,c:c.close};});
-
   const data={datasets:[
     {type:"candlestick",label:"USD/JPY",data:ohlc,
       color:{up:"#31d27c",down:"#ff6b6b",unchanged:"#8ea0ba"},
@@ -213,7 +276,6 @@ function drawPrice(candles){
     {type:"line",label:"BB+",data:labels.map(function(t,i){return {x:new Date(t).getTime(),y:bb.up[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]},
     {type:"line",label:"BB-",data:labels.map(function(t,i){return {x:new Date(t).getTime(),y:bb.lo[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]}
   ]};
-
   const opts={
     responsive:true,maintainAspectRatio:false,animation:false,
     plugins:{legend:{labels:{color:"#cdd9ee"}}},
@@ -222,7 +284,6 @@ function drawPrice(candles){
       y:{ticks:{color:"#8ea0ba"},grid:{color:"rgba(255,255,255,0.05)"}}
     }
   };
-
   if(priceChart){priceChart.destroy();}
   priceChart=new Chart(el.priceCanvas,{type:"candlestick",data:data,options:opts});
 }
@@ -254,6 +315,7 @@ function fmtLabel(t,tf){
 }
 
 async function update(){
+  drawSession();
   try{
     const candles=await fetchCandles(currentTF);
     const times=candles.map(function(c){return fmtLabel(c.time,currentTF);});
@@ -311,4 +373,6 @@ if(el.pills){
   });
 }
 setActiveTF(currentTF);
-setInterval(update,REFRESH_MS);
+drawSession();
+setInterval(update, REFRESH_MS);
+setInterval(drawSession, 60*1000);
