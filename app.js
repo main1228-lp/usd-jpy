@@ -49,9 +49,9 @@ function computeSignal(candles){
   const price=closes[n];
   const ma5=sma(closes,5)[n], ma25=sma(closes,25)[n], ma75=sma(closes,75)[n];
   const bb=bollinger(closes,20,2);
-  const mid=bb.ma[n];
-  const m=macd(closes);
-  const macdV=m.macd[n], sigV=m.signal[n], histV=m.hist[n];
+  const mid=bb.mid[n];
+  const m=macdCalc(closes);
+  const macdV=m.line[n], sigV=m.signal[n], histV=m.hist[n];
   const rsiV=rsi(closes,14)[n];
   const atrV=atr(candles,14)[n]||0.05;
 
@@ -65,24 +65,22 @@ function computeSignal(candles){
   if(price>mid) longScore++;
   if(price<mid) shortScore++;
 
-  let action="WAIT", color="#8ea0ba", tp=null, sl=null, reason="";
+  let action="WAIT（待機）", color="#f5c451", tp=null, sl=null,
+      reason="シグナル不一致 — ポジション見送り";
   if(longScore>=3){
-    action="LONG（買い）";color="#31d27c";
+    action="LONG（買い）"; color="#31d27c";
     tp=price+atrV*2; sl=price-atrV*1;
     reason="MA上昇 / MACD強気 / RSI中立超 / BB上";
   }else if(shortScore>=3){
-    action="SHORT（売り）";color="#ff6b6b";
+    action="SHORT（売り）"; color="#ff6b6b";
     tp=price-atrV*2; sl=price+atrV*1;
     reason="MA下降 / MACD弱気 / RSI中立未 / BB下";
-  }else{
-    action="WAIT（待機）";color="#f5c451";
-    reason="シグナル不一致 — ポジション見送り";
   }
 
   const fmt=function(v){return v==null?"--":v.toFixed(3);};
-  const el=document.getElementById;
-  document.getElementById("signalAction").textContent=action;
-  document.getElementById("signalAction").style.color=color;
+  const sa=document.getElementById("signalAction");
+  if(!sa) return;
+  sa.textContent=action; sa.style.color=color;
   document.getElementById("signalReason").textContent=reason;
   document.getElementById("sigEntry").textContent=fmt(price);
   document.getElementById("sigTP").textContent=fmt(tp);
@@ -191,6 +189,7 @@ async function update(){
     const sr=supRes(highs,lows,last,currentTF);
     el.supportText.textContent=sr.support.toFixed(3);
     el.resistanceText.textContent=sr.resistance.toFixed(3);
+    computeSignal(candles);
   }catch(e){console.error(e);el.currentRate.textContent="Err";}
 }
 
