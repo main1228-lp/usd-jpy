@@ -1,8 +1,8 @@
-// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱）
+// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定）
 const RATE_URL = "/api/rate";
 const REFRESH_MS = 3 * 60 * 1000;
 
-let currentTF = "5min"; // デフォルト
+let currentTF = "5min";
 const TF_BARS_PER_DAY = { "5min":288, "1h":24, "4h":6, "1day":1 };
 
 const $ = function(id){ return document.getElementById(id); };
@@ -43,6 +43,34 @@ function atr(candles,p){
   return out;
 }
 
+// === パーフェクトオーダー判定（及川式の核心） ===
+function perfectOrder(closes){
+  const n = closes.length-1;
+  if(n<76) return {kind:"none", label:"データ不足", color:"#8ea0ba", bonus:0};
+
+  const ma5  = sma(closes,5);
+  const ma25 = sma(closes,25);
+  const ma75 = sma(closes,75);
+
+  const a5=ma5[n], a25=ma25[n], a75=ma75[n];
+  const slope = function(arr){
+    if(n<3 || arr[n-3]==null) return 0;
+    return arr[n] - arr[n-3];
+  };
+  const s5=slope(ma5), s25=slope(ma25), s75=slope(ma75);
+
+  const orderUp   = a5>a25 && a25>a75;
+  const orderDown = a5<a25 && a25<a75;
+  const allUp     = s5>0 && s25>0 && s75>0;
+  const allDown   = s5<0 && s25<0 && s75<0;
+
+  if(orderUp && allUp)     return {kind:"po_up",  label:"🟢 パーフェクトオーダー（上）強い上昇トレンド", color:"#31d27c", bonus:+1};
+  if(orderDown && allDown) return {kind:"po_dn",  label:"🔴 パーフェクトオーダー（下）強い下降トレンド", color:"#ff6b6b", bonus:-1};
+  if(orderUp)              return {kind:"semi_up",label:"🟡 準PO（上）弱い上昇 — 様子見", color:"#f5c451", bonus:0};
+  if(orderDown)            return {kind:"semi_dn",label:"🟡 準PO（下）弱い下降 — 様子見", color:"#f5c451", bonus:0};
+  return {kind:"none", label:"⚪ MA乱れ — レンジ相場 (エントリー非推奨)", color:"#8ea0ba", bonus:0};
+}
+
 function computeSignal(candles){
   const n=candles.length-1;
   const closes=candles.map(function(c){return c.close;});
@@ -55,6 +83,8 @@ function computeSignal(candles){
   const rsiV=rsi(closes,14)[n];
   const atrV=atr(candles,14)[n]||0.05;
 
+  const po = perfectOrder(closes);
+
   let longScore=0, shortScore=0;
   if(ma5>ma25 && ma25>ma75) longScore++;
   if(ma5<ma25 && ma25<ma75) shortScore++;
@@ -65,12 +95,26 @@ function computeSignal(candles){
   if(price>mid) longScore++;
   if(price<mid) shortScore++;
 
+  // PO ボーナス
+  if(po.kind==="po_up") longScore++;
+  if(po.kind==="po_dn") shortScore++;
+
+  const maxScore = 5;
+
   let action="WAIT（待機）", color="#f5c451", tp=null, sl=null,
       reason="シグナル不一致 — ポジション見送り";
-  if(longScore>=3){
+  if(longScore>=4){
+    action="LONG（買い）★強"; color="#31d27c";
+    tp=price+atrV*2.5; sl=price-atrV*1;
+    reason="MA上昇 / MACD強気 / RSI中立超 / BB上 / PO一致";
+  }else if(longScore>=3){
     action="LONG（買い）"; color="#31d27c";
     tp=price+atrV*2; sl=price-atrV*1;
     reason="MA上昇 / MACD強気 / RSI中立超 / BB上";
+  }else if(shortScore>=4){
+    action="SHORT（売り）★強"; color="#ff6b6b";
+    tp=price-atrV*2.5; sl=price+atrV*1;
+    reason="MA下降 / MACD弱気 / RSI中立未 / BB下 / PO一致";
   }else if(shortScore>=3){
     action="SHORT（売り）"; color="#ff6b6b";
     tp=price-atrV*2; sl=price+atrV*1;
@@ -85,8 +129,17 @@ function computeSignal(candles){
   document.getElementById("sigEntry").textContent=fmt(price);
   document.getElementById("sigTP").textContent=fmt(tp);
   document.getElementById("sigSL").textContent=fmt(sl);
-  document.getElementById("sigScore").textContent=Math.max(longScore,shortScore)+"/4";
+  document.getElementById("sigScore").textContent=Math.max(longScore,shortScore)+"/"+maxScore;
   document.getElementById("signalCard").style.borderColor=color;
+
+  // PO バッジ表示
+  const poEl = document.getElementById("perfectOrder");
+  if(poEl){
+    poEl.textContent = po.label;
+    poEl.style.background = po.color + "22";
+    poEl.style.color = po.color;
+    poEl.style.border = "1px solid " + po.color + "66";
+  }
 }
 
 async function fetchCandles(tf){
