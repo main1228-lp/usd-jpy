@@ -1,10 +1,9 @@
-// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定 + 時間帯バッジ + 強制トレンドフィルター + JST表示 + S/R横線 + 現在レート線 + ライブ足high/low同時更新 + ダミーローソクで右余白強制確保）
+// USD/JPY ダッシュボード 安定復旧版
 const RATE_URL = "/api/rate";
 const REFRESH_MS = 3 * 60 * 1000;
 
 let currentTF = "5min";
 const TF_BARS_PER_DAY = { "5min":288, "1h":24, "4h":6, "1day":1 };
-const TF_MS = { "5min":5*60*1000, "1h":60*60*1000, "4h":4*60*60*1000, "1day":24*60*60*1000 };
 
 const $ = function(id){ return document.getElementById(id); };
 const el = {
@@ -53,61 +52,47 @@ function perfectOrder(closes){
     return arr[n] - arr[n-3];
   };
   const s5=slope(ma5), s25=slope(ma25), s75=slope(ma75);
-  const orderUp   = a5>a25 && a25>a75;
+  const orderUp = a5>a25 && a25>a75;
   const orderDown = a5<a25 && a25<a75;
-  const allUp     = s5>0 && s25>0 && s75>0;
-  const allDown   = s5<0 && s25<0 && s75<0;
-  if(orderUp && allUp)     return {kind:"po_up",  label:"🟢 パーフェクトオーダー(上)強い上昇トレンド", color:"#31d27c", bonus:+1};
-  if(orderDown && allDown) return {kind:"po_dn",  label:"🔴 パーフェクトオーダー(下)強い下降トレンド", color:"#ff6b6b", bonus:-1};
-  if(orderUp)              return {kind:"semi_up",label:"🟡 準PO(上) 弱い上昇 — 様子見", color:"#f5c451", bonus:0};
-  if(orderDown)            return {kind:"semi_dn",label:"🟡 準PO(下) 弱い下降 — 様子見", color:"#f5c451", bonus:0};
-  return {kind:"none", label:"⚪ MA乱れ — レンジ相場 (エントリー非推奨)", color:"#8ea0ba", bonus:0};
+  const allUp = s5>0 && s25>0 && s75>0;
+  const allDown = s5<0 && s25<0 && s75<0;
+  if(orderUp && allUp) return {kind:"po_up",label:"🟢 パーフェクトオーダー(上)強い上昇トレンド",color:"#31d27c",bonus:+1};
+  if(orderDown && allDown) return {kind:"po_dn",label:"🔴 パーフェクトオーダー(下)強い下降トレンド",color:"#ff6b6b",bonus:-1};
+  if(orderUp) return {kind:"semi_up",label:"🟡 準PO(上) 弱い上昇 — 様子見",color:"#f5c451",bonus:0};
+  if(orderDown) return {kind:"semi_dn",label:"🟡 準PO(下) 弱い下降 — 様子見",color:"#f5c451",bonus:0};
+  return {kind:"none",label:"⚪ MA乱れ — レンジ相場 (エントリー非推奨)",color:"#8ea0ba",bonus:0};
 }
 
-// === 時間帯バッジ ===
 function getSession(){
   const now = new Date();
   const utc = now.getTime() + now.getTimezoneOffset()*60000;
   const jst = new Date(utc + 9*3600000);
   const h = jst.getHours();
   const m = jst.getMinutes();
-
   let main, color, kind;
-  if(h>=21 || h<1){
-    main = "⚡ 欧州/NYオーバーラップ"; color = "#ff6b6b"; kind = "best";
-  }else if(h>=15 && h<17){
-    main = "⚡ 東京/欧州オーバーラップ"; color = "#f5c451"; kind = "best";
-  }else if(h>=9 && h<15){
-    main = "🗼 東京セッション"; color = "#31d27c"; kind = "high";
-  }else if(h>=17 && h<21){
-    main = "🇪🇺 欧州(ロンドン)"; color = "#4ea1ff"; kind = "high";
-  }else if(h>=1 && h<6){
-    main = "🗽 NYセッション後半"; color = "#8cc8ff"; kind = "mid";
-  }else{
-    main = "🌙 アジア早朝(薄商い)"; color = "#8ea0ba"; kind = "low";
-  }
+  if(h>=21 || h<1){main="⚡ 欧州/NYオーバーラップ";color="#ff6b6b";kind="best";}
+  else if(h>=15 && h<17){main="⚡ 東京/欧州オーバーラップ";color="#f5c451";kind="best";}
+  else if(h>=9 && h<15){main="🗼 東京セッション";color="#31d27c";kind="high";}
+  else if(h>=17 && h<21){main="🇪🇺 欧州(ロンドン)";color="#4ea1ff";kind="high";}
+  else if(h>=1 && h<6){main="🗽 NYセッション後半";color="#8cc8ff";kind="mid";}
+  else{main="🌙 アジア早朝(薄商い)";color="#8ea0ba";kind="low";}
 
-  let flash = "", flashColor = "";
+  let flash="", flashColor="";
   if(m>=55 || m<=5){
     const nextH = m>=55 ? (h+1)%24 : h;
-    flash = "🔔 時間切替中("+String(nextH).padStart(2,"0")+":00 前後)";
-    flashColor = "#f5c451";
+    flash="🔔 時間切替中("+String(nextH).padStart(2,"0")+":00 前後)";
+    flashColor="#f5c451";
   }
-  const keyHours = [0,9,15,17,21];
+  const keyHours=[0,9,15,17,21];
   if(keyHours.indexOf(h)>=0 && m<=10){
-    flash = "🔥 重要セッション切替直後 ("+String(h).padStart(2,"0")+":00)";
-    flashColor = "#ff6b6b";
+    flash="🔥 重要セッション切替直後 ("+String(h).padStart(2,"0")+":00)";
+    flashColor="#ff6b6b";
   }
   if(keyHours.indexOf((h+1)%24)>=0 && m>=50){
-    flash = "🔥 重要セッション切替直前 ("+String((h+1)%24).padStart(2,"0")+":00)";
-    flashColor = "#ff6b6b";
+    flash="🔥 重要セッション切替直前 ("+String((h+1)%24).padStart(2,"0")+":00)";
+    flashColor="#ff6b6b";
   }
-
-  return {
-    main: main, color: color, kind: kind,
-    flash: flash, flashColor: flashColor,
-    timeStr: String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+" JST"
-  };
+  return {main:main,color:color,kind:kind,flash:flash,flashColor:flashColor,timeStr:String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+" JST"};
 }
 
 function drawSession(){
@@ -116,25 +101,25 @@ function drawSession(){
   const flashEl = document.getElementById("sessionFlash");
   const timeEl = document.getElementById("sessionTime");
   if(nowEl){
-    nowEl.textContent = s.main;
-    nowEl.style.background = s.color + "22";
-    nowEl.style.color = s.color;
-    nowEl.style.border = "1px solid " + s.color + "66";
+    nowEl.textContent=s.main;
+    nowEl.style.background=s.color+"22";
+    nowEl.style.color=s.color;
+    nowEl.style.border="1px solid "+s.color+"66";
   }
   if(flashEl){
     if(s.flash){
-      flashEl.textContent = s.flash;
-      flashEl.style.background = s.flashColor + "22";
-      flashEl.style.color = s.flashColor;
-      flashEl.style.border = "1px solid " + s.flashColor + "66";
-      flashEl.style.fontWeight = "700";
+      flashEl.textContent=s.flash;
+      flashEl.style.background=s.flashColor+"22";
+      flashEl.style.color=s.flashColor;
+      flashEl.style.border="1px solid "+s.flashColor+"66";
+      flashEl.style.fontWeight="700";
     }else{
-      flashEl.textContent = "";
-      flashEl.style.background = "transparent";
-      flashEl.style.border = "none";
+      flashEl.textContent="";
+      flashEl.style.background="transparent";
+      flashEl.style.border="none";
     }
   }
-  if(timeEl){ timeEl.textContent = "現在: " + s.timeStr; }
+  if(timeEl){timeEl.textContent="現在: "+s.timeStr;}
 }
 
 function computeSignal(candles){
@@ -148,8 +133,7 @@ function computeSignal(candles){
   const macdV=m.line[n], sigV=m.signal[n], histV=m.hist[n];
   const rsiV=rsi(closes,14)[n];
   const atrV=atr(candles,14)[n]||0.05;
-
-  const po = perfectOrder(closes);
+  const po=perfectOrder(closes);
 
   let longScore=0, shortScore=0;
   if(ma5>ma25 && ma25>ma75) longScore++;
@@ -163,51 +147,39 @@ function computeSignal(candles){
   if(po.kind==="po_up") longScore++;
   if(po.kind==="po_dn") shortScore++;
 
-  const maxScore = 5;
-  let action="WAIT(待機)", color="#f5c451", tp=null, sl=null,
-      reason="シグナル不一致 — ポジション見送り";
+  const maxScore=5;
+  let action="WAIT(待機)", color="#f5c451", tp=null, sl=null, reason="シグナル不一致 — ポジション見送り";
   if(longScore>=4){
-    action="LONG(買い)★強"; color="#31d27c";
-    tp=price+atrV*2.5; sl=price-atrV*1;
-    reason="MA上昇 / MACD強気 / RSI中立超 / BB上 / PO一致";
+    action="LONG(買い)★強";color="#31d27c";tp=price+atrV*2.5;sl=price-atrV*1;reason="MA上昇 / MACD強気 / RSI中立超 / BB上 / PO一致";
   }else if(longScore>=3){
-    action="LONG(買い)"; color="#31d27c";
-    tp=price+atrV*2; sl=price-atrV*1;
-    reason="MA上昇 / MACD強気 / RSI中立超 / BB上";
+    action="LONG(買い)";color="#31d27c";tp=price+atrV*2;sl=price-atrV*1;reason="MA上昇 / MACD強気 / RSI中立超 / BB上";
   }else if(shortScore>=4){
-    action="SHORT(売り)★強"; color="#ff6b6b";
-    tp=price-atrV*2.5; sl=price+atrV*1;
-    reason="MA下降 / MACD弱気 / RSI中立未 / BB下 / PO一致";
+    action="SHORT(売り)★強";color="#ff6b6b";tp=price-atrV*2.5;sl=price+atrV*1;reason="MA下降 / MACD弱気 / RSI中立未 / BB下 / PO一致";
   }else if(shortScore>=3){
-    action="SHORT(売り)"; color="#ff6b6b";
-    tp=price-atrV*2; sl=price+atrV*1;
-    reason="MA下降 / MACD弱気 / RSI中立未 / BB下";
+    action="SHORT(売り)";color="#ff6b6b";tp=price-atrV*2;sl=price+atrV*1;reason="MA下降 / MACD弱気 / RSI中立未 / BB下";
   }
 
-  // === 強制トレンドフィルター ===
-  if(po.kind !== "po_up" && po.kind !== "po_dn"){
-    action = "WAIT(PO不成立・エントリー禁止)";
-    color  = "#8ea0ba";
-    tp = null; sl = null;
-    reason = "パーフェクトオーダー未成立 — 及川式フィルターで強制待機";
+  if(po.kind!=="po_up" && po.kind!=="po_dn"){
+    action="WAIT(PO不成立・エントリー禁止)";
+    color="#8ea0ba";tp=null;sl=null;
+    reason="パーフェクトオーダー未成立 — 及川式フィルターで強制待機";
   }
-  if(action.indexOf("LONG")===0 && po.kind === "po_dn"){
-    action = "WAIT(方向矛盾・エントリー禁止)";
-    color  = "#8ea0ba";
-    tp = null; sl = null;
-    reason = "シグナルは買いだがPOは下降 — 矛盾のため強制待機";
+  if(action.indexOf("LONG")===0 && po.kind==="po_dn"){
+    action="WAIT(方向矛盾・エントリー禁止)";
+    color="#8ea0ba";tp=null;sl=null;
+    reason="シグナルは買いだがPOは下降 — 矛盾のため強制待機";
   }
-  if(action.indexOf("SHORT")===0 && po.kind === "po_up"){
-    action = "WAIT(方向矛盾・エントリー禁止)";
-    color  = "#8ea0ba";
-    tp = null; sl = null;
-    reason = "シグナルは売りだがPOは上昇 — 矛盾のため強制待機";
+  if(action.indexOf("SHORT")===0 && po.kind==="po_up"){
+    action="WAIT(方向矛盾・エントリー禁止)";
+    color="#8ea0ba";tp=null;sl=null;
+    reason="シグナルは売りだがPOは上昇 — 矛盾のため強制待機";
   }
 
   const fmt=function(v){return v==null?"--":v.toFixed(3);};
   const sa=document.getElementById("signalAction");
   if(!sa) return;
-  sa.textContent=action; sa.style.color=color;
+  sa.textContent=action;
+  sa.style.color=color;
   document.getElementById("signalReason").textContent=reason;
   document.getElementById("sigEntry").textContent=fmt(price);
   document.getElementById("sigTP").textContent=fmt(tp);
@@ -215,12 +187,12 @@ function computeSignal(candles){
   document.getElementById("sigScore").textContent=Math.max(longScore,shortScore)+"/"+maxScore;
   document.getElementById("signalCard").style.borderColor=color;
 
-  const poEl = document.getElementById("perfectOrder");
+  const poEl=document.getElementById("perfectOrder");
   if(poEl){
-    poEl.textContent = po.label;
-    poEl.style.background = po.color + "22";
-    poEl.style.color = po.color;
-    poEl.style.border = "1px solid " + po.color + "66";
+    poEl.textContent=po.label;
+    poEl.style.background=po.color+"22";
+    poEl.style.color=po.color;
+    poEl.style.border="1px solid "+po.color+"66";
   }
 }
 
@@ -231,7 +203,16 @@ async function fetchCandles(tf){
   if(!j.candles||!j.candles.length)throw new Error("no candles");
   return j.candles;
 }
-async function fetchRate(){try{const r=await fetch(RATE_URL,{cache:"no-store"});if(!r.ok)return null;const j=await r.json();const v=Number(j.rate||j.price||j.close);return isFinite(v)?v:null;}catch(e){return null;}}
+
+async function fetchRate(){
+  try{
+    const r=await fetch(RATE_URL,{cache:"no-store"});
+    if(!r.ok)return null;
+    const j=await r.json();
+    const v=Number(j.rate||j.price||j.close);
+    return isFinite(v)?v:null;
+  }catch(e){return null;}
+}
 
 async function fetchStrength(){
   try{
@@ -279,10 +260,9 @@ function drawStrength(s){
 
 const baseOpts={responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:"index",intersect:false},plugins:{legend:{labels:{color:"#cdd9ee"}}},scales:{x:{ticks:{color:"#8ea0ba",maxRotation:0,autoSkip:true,maxTicksLimit:8},grid:{color:"rgba(255,255,255,0.05)"}},y:{ticks:{color:"#8ea0ba"},grid:{color:"rgba(255,255,255,0.05)"}}}};
 
-// === APIの時刻文字列を「JST」として解釈してミリ秒に変換 ===
 function parseJST(timeStr){
   if(!timeStr) return Date.now();
-  const s = String(timeStr).replace(" ", "T");
+  const s=String(timeStr).replace(" ","T");
   if(s.indexOf("Z")>=0 || /[+-]\d{2}:?\d{2}$/.test(s)){
     return new Date(s).getTime();
   }
@@ -292,8 +272,8 @@ function parseJST(timeStr){
 function supRes(highs,lows,lastClose,tf){
   const barsPerDay=TF_BARS_PER_DAY[tf]||24;
   const w=Math.min(barsPerDay,highs.length);
-  const hS=highs.slice(-w),lS=lows.slice(-w);
-  const maxH=Math.max.apply(null,hS),minL=Math.min.apply(null,lS);
+  const hS=highs.slice(-w), lS=lows.slice(-w);
+  const maxH=Math.max.apply(null,hS), minL=Math.min.apply(null,lS);
   const pv=(maxH+minL+lastClose)/3;
   return {support:Math.min(2*pv-maxH,minL),resistance:Math.max(2*pv-minL,maxH)};
 }
@@ -304,45 +284,29 @@ function drawPrice(candles){
   const lows=candles.map(function(c){return c.low;});
   const labels=candles.map(function(c){return c.time;});
   const bb=bollinger(closes,20,2);
-
-  // === 実データのOHLC ===
+  const ma5=sma(closes,5);
+  const ma25=sma(closes,25);
+  const ma75=sma(closes,75);
   const ohlc=candles.map(function(c){return {x:parseJST(c.time),o:c.open,h:c.high,l:c.low,c:c.close};});
 
-  // === 時間足ごとの1本あたりミリ秒 ===
-  const tfMs = TF_MS[currentTF] || 5*60*1000;
-
-  // === 未来側にダミーローソク(高さ0)を追加して右側余白を強制確保 ===
-  const lastTime = parseJST(labels[labels.length-1]);
-  const last     = closes[closes.length-1];
-  const futureBars = Math.floor(candles.length / 2);  // 余白量 = 表示本数の約半分 → 右1/3余白
-  for(let i=1; i<=futureBars; i++){
-    const t = lastTime + tfMs * i;
-    ohlc.push({x:t, o:null, h:null, l:null, c:null}); // 透明・描画されない
-  }
-
-  // === S/R + 現在レート(未来側まで線を伸ばす) ===
-  const sr = supRes(highs, lows, last, currentTF);
-  const xMin = parseJST(labels[0]);
-  const xMaxFuture = lastTime + tfMs * futureBars;
-  const supLine  = [{x:xMin, y:sr.support},     {x:xMaxFuture, y:sr.support}];
-  const resLine  = [{x:xMin, y:sr.resistance},  {x:xMaxFuture, y:sr.resistance}];
-  const rateLine = [{x:xMin, y:last},           {x:xMaxFuture, y:last}];
+  const sr=supRes(highs,lows,closes[closes.length-1],currentTF);
+  const last=closes[closes.length-1];
+  const xMin=parseJST(labels[0]);
+  const xMax=parseJST(labels[labels.length-1]);
+  const supLine=[{x:xMin,y:sr.support},{x:xMax,y:sr.support}];
+  const resLine=[{x:xMin,y:sr.resistance},{x:xMax,y:sr.resistance}];
+  const rateLine=[{x:xMin,y:last},{x:xMax,y:last}];
 
   const data={datasets:[
-    {type:"candlestick",label:"USD/JPY",data:ohlc,
-      color:{up:"#31d27c",down:"#ff6b6b",unchanged:"#8ea0ba"},
-      borderColor:{up:"#31d27c",down:"#ff6b6b",unchanged:"#8ea0ba"}},
-    {type:"line",label:"5MA",data:labels.map(function(t,i){return {x:parseJST(t),y:sma(closes,5)[i]};}),borderColor:"#31d27c",borderWidth:1,pointRadius:0,spanGaps:true},
-    {type:"line",label:"25MA",data:labels.map(function(t,i){return {x:parseJST(t),y:sma(closes,25)[i]};}),borderColor:"#f5c451",borderWidth:1,pointRadius:0,spanGaps:true},
-    {type:"line",label:"75MA",data:labels.map(function(t,i){return {x:parseJST(t),y:sma(closes,75)[i]};}),borderColor:"#ff8aa5",borderWidth:1,pointRadius:0,spanGaps:true},
-    {type:"line",label:"BB+",data:labels.map(function(t,i){return {x:parseJST(t),y:bb.up[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4],spanGaps:true},
-    {type:"line",label:"BB-",data:labels.map(function(t,i){return {x:parseJST(t),y:bb.lo[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4],spanGaps:true},
-    {type:"line",label:"サポート "+sr.support.toFixed(3),data:supLine,
-      borderColor:"#31d27c",borderWidth:2,pointRadius:0,borderDash:[8,4]},
-    {type:"line",label:"レジスタンス "+sr.resistance.toFixed(3),data:resLine,
-      borderColor:"#ff6b6b",borderWidth:2,pointRadius:0,borderDash:[8,4]},
-    {type:"line",label:"★ 現在レート "+last.toFixed(3),data:rateLine,
-      borderColor:"#8cc8ff",borderWidth:2.5,pointRadius:0,borderDash:[2,2]}
+    {type:"candlestick",label:"USD/JPY",data:ohlc,color:{up:"#31d27c",down:"#ff6b6b",unchanged:"#8ea0ba"},borderColor:{up:"#31d27c",down:"#ff6b6b",unchanged:"#8ea0ba"}},
+    {type:"line",label:"5MA",data:labels.map(function(t,i){return {x:parseJST(t),y:ma5[i]};}),borderColor:"#31d27c",borderWidth:1,pointRadius:0},
+    {type:"line",label:"25MA",data:labels.map(function(t,i){return {x:parseJST(t),y:ma25[i]};}),borderColor:"#f5c451",borderWidth:1,pointRadius:0},
+    {type:"line",label:"75MA",data:labels.map(function(t,i){return {x:parseJST(t),y:ma75[i]};}),borderColor:"#ff8aa5",borderWidth:1,pointRadius:0},
+    {type:"line",label:"BB+",data:labels.map(function(t,i){return {x:parseJST(t),y:bb.up[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]},
+    {type:"line",label:"BB-",data:labels.map(function(t,i){return {x:parseJST(t),y:bb.lo[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]},
+    {type:"line",label:"サポート "+sr.support.toFixed(3),data:supLine,borderColor:"#31d27c",borderWidth:2,pointRadius:0,borderDash:[8,4]},
+    {type:"line",label:"レジスタンス "+sr.resistance.toFixed(3),data:resLine,borderColor:"#ff6b6b",borderWidth:2,pointRadius:0,borderDash:[8,4]},
+    {type:"line",label:"★ 現在レート "+last.toFixed(3),data:rateLine,borderColor:"#8cc8ff",borderWidth:2.5,pointRadius:0,borderDash:[2,2]}
   ]};
 
   const opts={
@@ -350,12 +314,11 @@ function drawPrice(candles){
     plugins:{
       legend:{labels:{color:"#cdd9ee"}},
       tooltip:{
-        filter:function(item){ return item.parsed && item.parsed.y !== null; },  // ダミーをツールチップから除外
         callbacks:{
           title:function(items){
-            if(!items.length) return "";
-            const d = new Date(items[0].parsed.x);
-            return d.toLocaleString("ja-JP", {timeZone:"Asia/Tokyo", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit"}) + " JST";
+            if(!items.length)return "";
+            const d=new Date(items[0].parsed.x);
+            return d.toLocaleString("ja-JP",{timeZone:"Asia/Tokyo",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"})+" JST";
           }
         }
       }
@@ -363,30 +326,22 @@ function drawPrice(candles){
     scales:{
       x:{
         type:"timeseries",
-        adapters:{ date:{ zone:"Asia/Tokyo" } },
-        time:{
-          displayFormats:{
-            minute:"HH:mm",
-            hour:"M/d HH:mm",
-            day:"M/d",
-            week:"M/d",
-            month:"yyyy-MM"
-          }
-        },
+        adapters:{date:{zone:"Asia/Tokyo"}},
+        time:{displayFormats:{minute:"HH:mm",hour:"M/d HH:mm",day:"M/d",week:"M/d",month:"yyyy-MM"}},
         ticks:{color:"#8ea0ba",maxRotation:0,autoSkip:true,maxTicksLimit:8},
         grid:{color:"rgba(255,255,255,0.05)"}
       },
       y:{ticks:{color:"#8ea0ba"},grid:{color:"rgba(255,255,255,0.05)"}}
     }
   };
+
   if(priceChart){priceChart.destroy();}
   priceChart=new Chart(el.priceCanvas,{type:"candlestick",data:data,options:opts});
 }
 
-// === MACD描画 ===
 function drawMacd(times,closes){
   const m=macdCalc(closes);
-  const canvas = document.getElementById("macdChart");
+  const canvas=document.getElementById("macdChart");
   if(!canvas) return m;
   const data={labels:times,datasets:[
     {type:"bar",label:"Hist",data:m.hist,backgroundColor:m.hist.map(function(v){return (v||0)>=0?"rgba(49,210,124,.6)":"rgba(255,107,107,.6)";})},
@@ -410,43 +365,55 @@ async function update(){
     const times=candles.map(function(c){return fmtLabel(c.time,currentTF);});
     const closes=candles.map(function(c){return c.close;});
     const m=drawMacd(times,closes);
-    const last=closes[closes.length-1];
     const barsDay=TF_BARS_PER_DAY[currentTF]||24;
     const prev=closes[Math.max(0,closes.length-barsDay-1)]||closes[0];
-    const diff=last-prev;
-    const pct=(diff/prev)*100;
     const live=await fetchRate();
 
-    // === ライブレートを最終ローソクに反映(close + high/low 同時更新) ===
     if(live!==null){
-      const lastBar = candles[candles.length-1];
-      lastBar.close = live;
-      lastBar.high  = Math.max(lastBar.high, live);
-      lastBar.low   = Math.min(lastBar.low,  live);
+      const lastBar=candles[candles.length-1];
+      lastBar.close=live;
+      lastBar.high=Math.max(lastBar.high,live);
+      lastBar.low=Math.min(lastBar.low,live);
     }
+
+    const updatedCloses=candles.map(function(c){return c.close;});
+    const last=updatedCloses[updatedCloses.length-1];
+    const diff=last-prev;
+    const pct=(diff/prev)*100;
+
     drawPrice(candles);
 
-    el.dayChange.textContent=(diff>=0?"+":"")+diff.toFixed(3);
-    el.dayChange.style.color=diff>=0?"#31d27c":"#ff6b6b";
-    el.dayChangePct.textContent=(diff>=0?"+":"")+pct.toFixed(2)+"%";
-    const rArr=rsi(closes,14);
+    if(el.dayChange){
+      el.dayChange.textContent=(diff>=0?"+":"")+diff.toFixed(3);
+      el.dayChange.style.color=diff>=0?"#31d27c":"#ff6b6b";
+    }
+    if(el.dayChangePct){
+      el.dayChangePct.textContent=(diff>=0?"+":"")+pct.toFixed(2)+"%";
+    }
+
+    const rArr=rsi(updatedCloses,14);
     const rL=rArr[rArr.length-1];
-    el.rsiVal.textContent=rL?rL.toFixed(1):"--";
-    el.rsiText.textContent=rL>70?"買われすぎ":rL<30?"売られすぎ":"中立";
-    const mN=m.line[m.line.length-1],sN=m.signal[m.signal.length-1];
+    if(el.rsiVal) el.rsiVal.textContent=rL?rL.toFixed(1):"--";
+    if(el.rsiText) el.rsiText.textContent=rL>70?"買われすぎ":rL<30?"売られすぎ":"中立";
+
+    const mN=m.line[m.line.length-1], sN=m.signal[m.signal.length-1];
     let bias="中立";
     if(mN>sN&&rL<70)bias="買い優勢";
     else if(mN<sN&&rL>30)bias="売り優勢";
-    el.biasText.textContent=bias;
+    if(el.biasText) el.biasText.textContent=bias;
+
     computeSignal(candles);
+
     const strength=await fetchStrength();
     if(strength)drawStrength(strength);
-  }catch(e){console.error(e);}
+  }catch(e){
+    console.error(e);
+  }
 }
 
 function setActiveTF(tf){
   currentTF=tf;
-  const btns=el.pills.querySelectorAll(".tf");
+  const btns=el.pills ? el.pills.querySelectorAll(".tf") : [];
   btns.forEach(function(b){
     if(b.getAttribute("data-tf")===tf)b.classList.add("active");
     else b.classList.remove("active");
@@ -462,7 +429,8 @@ if(el.pills){
     }
   });
 }
+
 setActiveTF(currentTF);
 drawSession();
-setInterval(update, REFRESH_MS);
-setInterval(drawSession, 60*1000);
+setInterval(update,REFRESH_MS);
+setInterval(drawSession,60*1000);
