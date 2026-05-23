@@ -32,10 +32,6 @@
     .chartbox{position:relative;height:420px}
     .chartbox.sm{height:330px}
     canvas{width:100%!important;height:100%!important;display:block}
-    .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-    .stat{border:1px solid var(--line);background:rgba(7,13,24,.55);border-radius:14px;padding:12px}
-    .stat .k{color:var(--muted);font-size:12px;margin-bottom:6px}
-    .stat .v{font-size:18px;font-weight:800}
     .pill.tf{cursor:pointer;background:rgba(13,21,38,.92);color:#b8c7dd;border:1px solid var(--line)}
     .pill.tf:hover{background:rgba(78,161,255,.15)}
     .pill.tf.active{background:rgba(140,200,255,.18);color:#fff;border-color:#4ea1ff}
@@ -46,9 +42,15 @@
 <body>
   <div class="wrap">
     <div class="top">
-      <div>
+      <div style="flex:1">
         <h1>USD/JPY テクニカル分析ダッシュボード</h1>
         <div class="sub">直近5日分のローソク足 / MACD / ボリンジャーバンド</div>
+        <!-- 時間帯バッジ -->
+        <div id="sessionBar" style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center">
+          <div id="sessionNow" style="padding:6px 12px;border-radius:999px;font-size:13px;font-weight:700;background:#1b2440;color:#8ea0ba;border:1px solid #2a3550">セッション判定中…</div>
+          <div id="sessionFlash" style="padding:6px 12px;border-radius:999px;font-size:12px;background:transparent;color:#8ea0ba"></div>
+          <div id="sessionTime" style="margin-left:auto;font-size:12px;color:#8ea0ba"></div>
+        </div>
       </div>
       <div class="pills" id="intervalPills">
         <button class="pill tf" data-tf="5min">5分</button>
