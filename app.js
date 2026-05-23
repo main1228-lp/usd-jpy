@@ -288,15 +288,18 @@ function drawPrice(candles){
   priceChart=new Chart(el.priceCanvas,{type:"candlestick",data:data,options:opts});
 }
 
+// === MACD描画（安全版：canvasが無ければ静かにスキップ） ===
 function drawMacd(times,closes){
   const m=macdCalc(closes);
+  const canvas = document.getElementById("macdChart");
+  if(!canvas) return m;  // ← canvasが無ければ描画スキップ（MACD非表示時）
   const data={labels:times,datasets:[
     {type:"bar",label:"Hist",data:m.hist,backgroundColor:m.hist.map(function(v){return (v||0)>=0?"rgba(49,210,124,.6)":"rgba(255,107,107,.6)";})},
     {type:"line",label:"MACD",data:m.line,borderColor:"#4ea1ff",borderWidth:1.5,pointRadius:0},
     {type:"line",label:"Signal",data:m.signal,borderColor:"#f5c451",borderWidth:1.5,pointRadius:0}
   ]};
   if(macdChart){macdChart.data=data;macdChart.update();}
-  else{macdChart=new Chart(el.macdCanvas,{data:data,options:baseOpts});}
+  else{macdChart=new Chart(canvas,{data:data,options:baseOpts});}
   return m;
 }
 
