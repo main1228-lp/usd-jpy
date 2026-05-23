@@ -1,4 +1,4 @@
-// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定 + 時間帯バッジ + 強制トレンドフィルター + JST表示 + S/R横線 + 現在レート線 + ライブ足high/low同時更新）
+// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定 + 時間帯バッジ + 強制トレンドフィルター + JST表示 + S/R横線 + 現在レート線 + ライブ足high/low同時更新 + 右側余白）
 const RATE_URL = "/api/rate";
 const REFRESH_MS = 3 * 60 * 1000;
 
@@ -305,14 +305,16 @@ function drawPrice(candles){
   const bb=bollinger(closes,20,2);
   const ohlc=candles.map(function(c){return {x:parseJST(c.time),o:c.open,h:c.high,l:c.low,c:c.close};});
 
-  // === S/R + 現在レート ===
+  // === S/R + 現在レート + 右側余白(全期間の1/3) ===
   const sr = supRes(highs, lows, closes[closes.length-1], currentTF);
   const last = closes[closes.length-1];
   const xMin = parseJST(labels[0]);
   const xMax = parseJST(labels[labels.length-1]);
-  const supLine  = [{x:xMin, y:sr.support},     {x:xMax, y:sr.support}];
-  const resLine  = [{x:xMin, y:sr.resistance},  {x:xMax, y:sr.resistance}];
-  const rateLine = [{x:xMin, y:last},           {x:xMax, y:last}];
+  const totalSpan  = xMax - xMin;
+  const xMaxPadded = xMax + totalSpan * 0.33;
+  const supLine  = [{x:xMin, y:sr.support},     {x:xMaxPadded, y:sr.support}];
+  const resLine  = [{x:xMin, y:sr.resistance},  {x:xMaxPadded, y:sr.resistance}];
+  const rateLine = [{x:xMin, y:last},           {x:xMaxPadded, y:last}];
 
   const data={datasets:[
     {type:"candlestick",label:"USD/JPY",data:ohlc,
@@ -327,7 +329,6 @@ function drawPrice(candles){
       borderColor:"#31d27c",borderWidth:2,pointRadius:0,borderDash:[8,4]},
     {type:"line",label:"レジスタンス "+sr.resistance.toFixed(3),data:resLine,
       borderColor:"#ff6b6b",borderWidth:2,pointRadius:0,borderDash:[8,4]},
-    // === 現在レート(水色・太め・短破線) ===
     {type:"line",label:"★ 現在レート "+last.toFixed(3),data:rateLine,
       borderColor:"#8cc8ff",borderWidth:2.5,pointRadius:0,borderDash:[2,2]}
   ]};
@@ -350,6 +351,8 @@ function drawPrice(candles){
       x:{
         type:"timeseries",
         adapters:{ date:{ zone:"Asia/Tokyo" } },
+        min: xMin,
+        max: xMaxPadded,
         time:{
           displayFormats:{
             minute:"HH:mm",
