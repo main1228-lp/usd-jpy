@@ -90,7 +90,7 @@
       </div>
     </div>
 
-    <!-- ===== 統合サマリーパネル（現在レート + 前日比 + RSI + 判定） ===== -->
+    <!-- ===== 統合サマリーパネル(現在レート + 前日比 + RSI + 判定) ===== -->
     <div class="card summary-card">
       <div class="summary-header">マーケットサマリー</div>
       <div class="summary-grid">
@@ -129,7 +129,7 @@
     <!-- 通貨強弱メーター -->
     <div class="card panel" style="margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;flex-wrap:wrap">
-        <h2 style="margin:0;font-size:16px">通貨強弱（24h変化率%）</h2>
+        <h2 style="margin:0;font-size:16px">通貨強弱(24h変化率%)</h2>
         <div class="small" id="strengthHint" style="margin:0">強い通貨を買い・弱い通貨を売る</div>
       </div>
       <div id="strengthBars" style="display:flex;flex-direction:column;gap:8px">
@@ -167,14 +167,10 @@
       </div>
     </div>
 
+    <!-- メインチャート(S/R横線込み) -->
     <div class="card panel" style="margin-bottom:12px">
-      <h2>ローソク足 + MA + BOLLINGER + 20PIPSゾーン</h2>
+      <h2>ローソク足 + MA + BOLLINGER + 20PIPSゾーン + S/R</h2>
       <div class="chartbox"><canvas id="priceChart"></canvas></div>
-    </div>
-
-    <div class="grid1">
-      <div class="card panel"><h2>主要サポート</h2><div class="value" style="font-size:20px" id="supportText">--</div><div class="small">主要押し目候補</div></div>
-      <div class="card panel"><h2>主要レジスタンス</h2><div class="value" style="font-size:20px" id="resistanceText">--</div><div class="small">主要戻り売り候補</div></div>
     </div>
 
   </div>
