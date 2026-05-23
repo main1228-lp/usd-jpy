@@ -1,7 +1,7 @@
 // /api/strength.js  — 通貨強弱（24h変化率）
 export default async function handler(req, res){
-  const KEY = process.env.TWELVE_DATA_API_KEY;
-  if(!KEY){ res.status(500).json({error:"No API key (TWELVE_DATA_API_KEY)"}); return; }
+  const KEY = process.env.TWELVE_DATA_KEY;
+  if(!KEY){ res.status(500).json({error:"No API key (TWELVE_DATA_KEY)"}); return; }
 
   const pairs = [
     "USD/JPY","EUR/USD","GBP/USD","AUD/USD",
@@ -15,7 +15,6 @@ export default async function handler(req, res){
     const r = await fetch(url);
     const j = await r.json();
 
-    // 1行から percent_change を取り出す（複数フォーマットに対応）
     const pick = function(row){
       if(!row || typeof row !== "object") return null;
       if(row.percent_change != null) return Number(row.percent_change);
@@ -30,19 +29,14 @@ export default async function handler(req, res){
 
     const changes = {};
 
-    // ケース1: 配列で返ってくる
     if(Array.isArray(j)){
       j.forEach(function(row){
         if(row && row.symbol) changes[row.symbol] = pick(row);
       });
-    }
-    // ケース2: オブジェクトで返ってくる
-    else if(j && typeof j === "object"){
-      // 単一シンボル（symbolキーあり）
+    }else if(j && typeof j === "object"){
       if(j.symbol && j.percent_change != null){
         changes[j.symbol] = pick(j);
       }
-      // 複数シンボル: キーが "USD/JPY" / "USDJPY" / "USD_JPY" の可能性
       pairs.forEach(function(p){
         const candidates = [p, p.replace("/",""), p.replace("/","_")];
         for(let i=0;i<candidates.length;i++){
@@ -55,7 +49,6 @@ export default async function handler(req, res){
       });
     }
 
-    // 通貨ごとの平均強さ（合算）
     const map = {
       USD: ["USD/JPY","-EUR/USD","-GBP/USD","-AUD/USD"],
       JPY: ["-USD/JPY","-EUR/JPY","-GBP/JPY","-AUD/JPY"],
@@ -76,14 +69,12 @@ export default async function handler(req, res){
     });
 
     res.setHeader("Cache-Control","s-maxage=60");
-    // デバッグ情報も一緒に返す
     res.status(200).json({
       strength: result,
       raw: changes,
       debug: {
         topLevelKeys: j && typeof j==="object" ? Object.keys(j).slice(0,15) : null,
         isArray: Array.isArray(j),
-        sample: j && typeof j==="object" ? (Array.isArray(j) ? j[0] : j[Object.keys(j)[0]]) : null,
         apiStatus: j && j.status ? j.status : null,
         apiMessage: j && j.message ? j.message : null
       }
