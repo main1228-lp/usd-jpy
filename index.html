@@ -35,10 +35,10 @@
     .pill.tf:hover{background:rgba(78,161,255,.15)}
     .pill.tf.active{background:rgba(140,200,255,.18);color:#fff;border-color:#4ea1ff}
 
-    /* ===== 統合サマリーパネル ===== */
+    /* ===== 統合サマリーパネル(3セル版) ===== */
     .summary-card{margin-bottom:12px;padding:16px 20px}
     .summary-header{font-size:12px;color:#8ea0ba;letter-spacing:.06em;margin-bottom:14px;text-transform:uppercase;font-weight:700}
-    .summary-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr 1.2fr;gap:0;align-items:stretch}
+    .summary-grid{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:0;align-items:stretch}
     .summary-cell{display:flex;flex-direction:column;justify-content:center;gap:4px;padding:6px 18px;position:relative}
     .summary-cell + .summary-cell{border-left:1px solid rgba(255,255,255,.07)}
     .summary-cell:first-child{padding-left:4px}
@@ -55,9 +55,7 @@
       .summary-grid{grid-template-columns:1fr 1fr}
       .summary-cell + .summary-cell{border-left:none}
       .summary-cell:nth-child(2){border-left:1px solid rgba(255,255,255,.07)}
-      .summary-cell:nth-child(3),
-      .summary-cell:nth-child(4){border-top:1px solid rgba(255,255,255,.07);padding-top:14px;margin-top:6px}
-      .summary-cell:nth-child(4){border-left:1px solid rgba(255,255,255,.07)}
+      .summary-cell:nth-child(3){border-top:1px solid rgba(255,255,255,.07);padding-top:14px;margin-top:6px}
       .summary-cell{padding:10px 16px}
     }
     @media (max-width:720px){
@@ -90,17 +88,10 @@
       </div>
     </div>
 
-    <!-- ===== 統合サマリーパネル(現在レート + 前日比 + RSI + 判定) ===== -->
+    <!-- ===== 統合サマリーパネル(前日比 + RSI + 判定) ===== -->
     <div class="card summary-card">
       <div class="summary-header">マーケットサマリー</div>
       <div class="summary-grid">
-
-        <!-- 現在レート -->
-        <div class="summary-cell">
-          <div class="summary-label">現在レート</div>
-          <div class="summary-value-xl" id="currentRate">--</div>
-          <div class="summary-sub">USD/JPY</div>
-        </div>
 
         <!-- 前日比 -->
         <div class="summary-cell">
@@ -167,9 +158,9 @@
       </div>
     </div>
 
-    <!-- メインチャート(S/R横線込み) -->
+    <!-- メインチャート(S/R + 現在レート横線込み) -->
     <div class="card panel" style="margin-bottom:12px">
-      <h2>ローソク足 + MA + BOLLINGER + 20PIPSゾーン + S/R</h2>
+      <h2>ローソク足 + MA + BOLLINGER + 20PIPSゾーン + S/R + 現在レート</h2>
       <div class="chartbox"><canvas id="priceChart"></canvas></div>
     </div>
 
