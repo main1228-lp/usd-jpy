@@ -38,18 +38,34 @@ async function fetchRate(){try{const r=await fetch(RATE_URL,{cache:"no-store"});
 
 const baseOpts={responsive:true,maintainAspectRatio:false,animation:false,interaction:{mode:"index",intersect:false},plugins:{legend:{labels:{color:"#cdd9ee"}}},scales:{x:{ticks:{color:"#8ea0ba",maxRotation:0,autoSkip:true,maxTicksLimit:8},grid:{color:"rgba(255,255,255,0.05)"}},y:{ticks:{color:"#8ea0ba"},grid:{color:"rgba(255,255,255,0.05)"}}}};
 
-function drawPrice(times,closes){
+function drawPrice(candles){
+  const closes=candles.map(function(c){return c.close;});
+  const labels=candles.map(function(c){return c.time;});
   const bb=bollinger(closes,20,2);
-  const data={labels:times,datasets:[
-    {label:"Close",data:closes,borderColor:"#8cc8ff",borderWidth:2,pointRadius:0,tension:0.15},
-    {label:"5MA",data:sma(closes,5),borderColor:"#31d27c",borderWidth:1,pointRadius:0},
-    {label:"25MA",data:sma(closes,25),borderColor:"#f5c451",borderWidth:1,pointRadius:0},
-    {label:"75MA",data:sma(closes,75),borderColor:"#ff8aa5",borderWidth:1,pointRadius:0},
-    {label:"BB+",data:bb.up,borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]},
-    {label:"BB-",data:bb.lo,borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]}
+  const ohlc=candles.map(function(c){return {x:new Date(c.time).getTime(),o:c.open,h:c.high,l:c.low,c:c.close};});
+
+  const data={datasets:[
+    {type:"candlestick",label:"USD/JPY",data:ohlc,
+      color:{up:"#31d27c",down:"#ff6b6b",unchanged:"#8ea0ba"},
+      borderColor:{up:"#31d27c",down:"#ff6b6b",unchanged:"#8ea0ba"}},
+    {type:"line",label:"5MA",data:labels.map(function(t,i){return {x:new Date(t).getTime(),y:sma(closes,5)[i]};}),borderColor:"#31d27c",borderWidth:1,pointRadius:0},
+    {type:"line",label:"25MA",data:labels.map(function(t,i){return {x:new Date(t).getTime(),y:sma(closes,25)[i]};}),borderColor:"#f5c451",borderWidth:1,pointRadius:0},
+    {type:"line",label:"75MA",data:labels.map(function(t,i){return {x:new Date(t).getTime(),y:sma(closes,75)[i]};}),borderColor:"#ff8aa5",borderWidth:1,pointRadius:0},
+    {type:"line",label:"BB+",data:labels.map(function(t,i){return {x:new Date(t).getTime(),y:bb.up[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]},
+    {type:"line",label:"BB-",data:labels.map(function(t,i){return {x:new Date(t).getTime(),y:bb.lo[i]};}),borderColor:"rgba(180,200,230,.6)",borderWidth:1,pointRadius:0,borderDash:[4,4]}
   ]};
-  if(priceChart){priceChart.data=data;priceChart.update();}
-  else{priceChart=new Chart(el.priceCanvas,{type:"line",data:data,options:baseOpts});}
+
+  const opts={
+    responsive:true,maintainAspectRatio:false,animation:false,
+    plugins:{legend:{labels:{color:"#cdd9ee"}}},
+    scales:{
+      x:{type:"timeseries",ticks:{color:"#8ea0ba",maxRotation:0,autoSkip:true,maxTicksLimit:8},grid:{color:"rgba(255,255,255,0.05)"}},
+      y:{ticks:{color:"#8ea0ba"},grid:{color:"rgba(255,255,255,0.05)"}}
+    }
+  };
+
+  if(priceChart){priceChart.destroy();}
+  priceChart=new Chart(el.priceCanvas,{type:"candlestick",data:data,options:opts});
 }
 
 function drawMacd(times,closes){
@@ -85,7 +101,7 @@ async function update(){
     const closes=candles.map(function(c){return c.close;});
     const highs=candles.map(function(c){return c.high;});
     const lows=candles.map(function(c){return c.low;});
-    drawPrice(times,closes);
+    drawPrice(candles);
     const m=drawMacd(times,closes);
     const last=closes[closes.length-1];
     const barsDay=TF_BARS_PER_DAY[currentTF]||24;
