@@ -1,4 +1,4 @@
-// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定 + 時間帯バッジ + 強制トレンドフィルター + JST表示 + S/R横線）
+// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定 + 時間帯バッジ + 強制トレンドフィルター + JST表示 + S/R横線 + 現在レート線）
 const RATE_URL = "/api/rate";
 const REFRESH_MS = 3 * 60 * 1000;
 
@@ -7,7 +7,6 @@ const TF_BARS_PER_DAY = { "5min":288, "1h":24, "4h":6, "1day":1 };
 
 const $ = function(id){ return document.getElementById(id); };
 const el = {
-  currentRate: $("currentRate"),
   dayChange: $("dayChange"),
   dayChangePct: $("dayChangePct"),
   rsiVal: $("rsiVal"),
@@ -306,12 +305,14 @@ function drawPrice(candles){
   const bb=bollinger(closes,20,2);
   const ohlc=candles.map(function(c){return {x:parseJST(c.time),o:c.open,h:c.high,l:c.low,c:c.close};});
 
-  // === サポート/レジスタンス計算 ===
+  // === S/R + 現在レート ===
   const sr = supRes(highs, lows, closes[closes.length-1], currentTF);
+  const last = closes[closes.length-1];
   const xMin = parseJST(labels[0]);
   const xMax = parseJST(labels[labels.length-1]);
-  const supLine = [{x:xMin, y:sr.support},  {x:xMax, y:sr.support}];
-  const resLine = [{x:xMin, y:sr.resistance},{x:xMax, y:sr.resistance}];
+  const supLine  = [{x:xMin, y:sr.support},     {x:xMax, y:sr.support}];
+  const resLine  = [{x:xMin, y:sr.resistance},  {x:xMax, y:sr.resistance}];
+  const rateLine = [{x:xMin, y:last},           {x:xMax, y:last}];
 
   const data={datasets:[
     {type:"candlestick",label:"USD/JPY",data:ohlc,
@@ -325,7 +326,10 @@ function drawPrice(candles){
     {type:"line",label:"サポート "+sr.support.toFixed(3),data:supLine,
       borderColor:"#31d27c",borderWidth:2,pointRadius:0,borderDash:[8,4]},
     {type:"line",label:"レジスタンス "+sr.resistance.toFixed(3),data:resLine,
-      borderColor:"#ff6b6b",borderWidth:2,pointRadius:0,borderDash:[8,4]}
+      borderColor:"#ff6b6b",borderWidth:2,pointRadius:0,borderDash:[8,4]},
+    // === 現在レート(水色・太め・短破線) ===
+    {type:"line",label:"★ 現在レート "+last.toFixed(3),data:rateLine,
+      borderColor:"#8cc8ff",borderWidth:2.5,pointRadius:0,borderDash:[2,2]}
   ]};
 
   const opts={
@@ -391,7 +395,6 @@ async function update(){
     const candles=await fetchCandles(currentTF);
     const times=candles.map(function(c){return fmtLabel(c.time,currentTF);});
     const closes=candles.map(function(c){return c.close;});
-    drawPrice(candles);
     const m=drawMacd(times,closes);
     const last=closes[closes.length-1];
     const barsDay=TF_BARS_PER_DAY[currentTF]||24;
@@ -399,12 +402,16 @@ async function update(){
     const diff=last-prev;
     const pct=(diff/prev)*100;
     const live=await fetchRate();
-    const shown=live!==null?live:last;
-    el.currentRate.textContent=shown.toFixed(3);
-    const sign=diff>=0?"+":"";
-    el.dayChange.textContent=sign+diff.toFixed(3);
+
+    // === ライブレートを最終ローソクのcloseに上書きしてからチャート描画 ===
+    if(live!==null){
+      candles[candles.length-1].close = live;
+    }
+    drawPrice(candles);
+
+    el.dayChange.textContent=(diff>=0?"+":"")+diff.toFixed(3);
     el.dayChange.style.color=diff>=0?"#31d27c":"#ff6b6b";
-    el.dayChangePct.textContent=sign+pct.toFixed(2)+"%";
+    el.dayChangePct.textContent=(diff>=0?"+":"")+pct.toFixed(2)+"%";
     const rArr=rsi(closes,14);
     const rL=rArr[rArr.length-1];
     el.rsiVal.textContent=rL?rL.toFixed(1):"--";
@@ -417,7 +424,7 @@ async function update(){
     computeSignal(candles);
     const strength=await fetchStrength();
     if(strength)drawStrength(strength);
-  }catch(e){console.error(e);el.currentRate.textContent="Err";}
+  }catch(e){console.error(e);}
 }
 
 function setActiveTF(tf){
