@@ -65,7 +65,18 @@
       <div class="card"><div class="label">判定</div><div class="value" style="font-size:16px;margin-bottom:2px" id="biasText">--</div><div class="small">MA / MACD / RSI を加味した簡易判定</div></div>
     </div>
 
-    <!-- エントリーシグナル（ローソク足カードの外側に独立配置） -->
+    <!-- 通貨強弱メーター -->
+    <div class="card panel" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:10px;flex-wrap:wrap">
+        <h2 style="margin:0;font-size:16px">通貨強弱（24h変化率%）</h2>
+        <div class="small" id="strengthHint" style="margin:0">強い通貨を買い・弱い通貨を売る</div>
+      </div>
+      <div id="strengthBars" style="display:flex;flex-direction:column;gap:8px">
+        <div class="small">読み込み中…</div>
+      </div>
+    </div>
+
+    <!-- エントリーシグナル（独立配置） -->
     <div class="card panel" id="signalCard" style="margin-bottom:12px;border:2px solid #2a3550">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
         <div>
