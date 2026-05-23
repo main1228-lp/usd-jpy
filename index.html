@@ -23,6 +23,7 @@
     .label{color:var(--muted);font-size:12px;margin-bottom:8px}
     .value{font-size:28px;font-weight:800;letter-spacing:.02em}
     .small{margin-top:6px;color:var(--muted);font-size:13px}
+    .muted{color:var(--muted)}
     .badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:999px;background:rgba(49,210,124,.13);color:#94f0ba;font-size:12px;font-weight:700}
     .badge.short{background:rgba(255,107,107,.13);color:#ffb0b0}
     .grid2{display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px}
@@ -64,36 +65,37 @@
       <div class="card"><div class="label">判定</div><div class="value" style="font-size:16px;margin-bottom:2px" id="biasText">--</div><div class="small">MA / MACD / RSI を加味した簡易判定</div></div>
     </div>
 
+    <!-- エントリーシグナル（ローソク足カードの外側に独立配置） -->
+    <div class="card panel" id="signalCard" style="margin-bottom:12px;border:2px solid #2a3550">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+        <div>
+          <div class="muted" style="font-size:12px">エントリーシグナル</div>
+          <div id="signalAction" style="font-size:28px;font-weight:800;margin-top:4px">--</div>
+          <div id="signalReason" class="muted" style="font-size:12px;margin-top:4px">--</div>
+        </div>
+        <div style="display:flex;gap:24px;flex-wrap:wrap">
+          <div>
+            <div class="muted" style="font-size:12px">エントリー</div>
+            <div id="sigEntry" style="font-size:20px;font-weight:700">--</div>
+          </div>
+          <div>
+            <div class="muted" style="font-size:12px;color:#31d27c">T/P (利確)</div>
+            <div id="sigTP" style="font-size:20px;font-weight:700;color:#31d27c">--</div>
+          </div>
+          <div>
+            <div class="muted" style="font-size:12px;color:#ff6b6b">S/L (損切)</div>
+            <div id="sigSL" style="font-size:20px;font-weight:700;color:#ff6b6b">--</div>
+          </div>
+          <div>
+            <div class="muted" style="font-size:12px">スコア</div>
+            <div id="sigScore" style="font-size:20px;font-weight:700">--/4</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="card panel" style="margin-bottom:12px">
       <h2>ローソク足 + MA + BOLLINGER + 20PIPSゾーン</h2>
-      <div class="card panel" id="signalCard" style="margin-bottom:12px;border:2px solid #2a3550">
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
-    <div>
-      <div class="muted" style="font-size:12px">エントリーシグナル</div>
-      <div id="signalAction" style="font-size:28px;font-weight:800;margin-top:4px">--</div>
-      <div id="signalReason" class="muted" style="font-size:12px;margin-top:4px">--</div>
-    </div>
-    <div style="display:flex;gap:24px;flex-wrap:wrap">
-      <div>
-        <div class="muted" style="font-size:12px">エントリー</div>
-        <div id="sigEntry" style="font-size:20px;font-weight:700">--</div>
-      </div>
-      <div>
-        <div class="muted" style="font-size:12px;color:#31d27c">T/P (利確)</div>
-        <div id="sigTP" style="font-size:20px;font-weight:700;color:#31d27c">--</div>
-      </div>
-      <div>
-        <div class="muted" style="font-size:12px;color:#ff6b6b">S/L (損切)</div>
-        <div id="sigSL" style="font-size:20px;font-weight:700;color:#ff6b6b">--</div>
-      </div>
-      <div>
-        <div class="muted" style="font-size:12px">スコア</div>
-        <div id="sigScore" style="font-size:20px;font-weight:700">--/4</div>
-      </div>
-    </div>
-  </div>
-</div>
-      
       <div class="chartbox"><canvas id="priceChart"></canvas></div>
     </div>
 
