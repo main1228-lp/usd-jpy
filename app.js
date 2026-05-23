@@ -1,4 +1,4 @@
-// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定 + 時間帯バッジ + 強制トレンドフィルター + JST表示 + S/R横線 + 現在レート線）
+// USD/JPY ダッシュボード（Twelve Data + Chart.js + 時間足切替 + 通貨強弱 + PO判定 + 時間帯バッジ + 強制トレンドフィルター + JST表示 + S/R横線 + 現在レート線 + ライブ足high/low同時更新）
 const RATE_URL = "/api/rate";
 const REFRESH_MS = 3 * 60 * 1000;
 
@@ -403,9 +403,12 @@ async function update(){
     const pct=(diff/prev)*100;
     const live=await fetchRate();
 
-    // === ライブレートを最終ローソクのcloseに上書きしてからチャート描画 ===
+    // === ライブレートを最終ローソクに反映(close + high/low 同時更新) ===
     if(live!==null){
-      candles[candles.length-1].close = live;
+      const lastBar = candles[candles.length-1];
+      lastBar.close = live;
+      lastBar.high  = Math.max(lastBar.high, live);
+      lastBar.low   = Math.min(lastBar.low,  live);
     }
     drawPrice(candles);
 
