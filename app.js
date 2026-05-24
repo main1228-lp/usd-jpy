@@ -1,8 +1,4 @@
-// USD/JPY ダッシュボード 安定復旧版 + API節約版
-// 変更点:
-// - 全体更新: 10分に1回
-// - 通貨強弱: 30分に1回
-// - ローソク取得本数: 100本
+// USD/JPY ダッシュボード 安定復旧版 + API節約版 + タブ切替デバウンス
 const RATE_URL = "/api/rate";
 const REFRESH_MS = 10 * 60 * 1000;
 const STRENGTH_REFRESH_MS = 30 * 60 * 1000;
@@ -10,6 +6,10 @@ const STRENGTH_REFRESH_MS = 30 * 60 * 1000;
 let currentTF = "5min";
 let lastStrengthFetch = 0;
 let cachedStrength = null;
+let tfSwitchTimer = null;
+let lastTFUpdateAt = 0;
+const TF_SWITCH_DEBOUNCE_MS = 800;
+const TF_SWITCH_MIN_GAP_MS = 3000;
 
 const TF_BARS_PER_DAY = { "5min":288, "1h":24, "4h":6, "1day":1 };
 
@@ -353,16 +353,10 @@ function computeSignal(candles){
 async function fetchCandles(tf){
   const url="/api/candles?interval="+tf+"&outputsize=100";
   const r=await fetch(url,{cache:"no-store"});
-
-  if(!r.ok){
-    throw new Error("candles HTTP "+r.status);
-  }
+  if(!r.ok) throw new Error("candles HTTP "+r.status);
 
   const j=await r.json();
-
-  if(j.error){
-    throw new Error(j.detail||j.error);
-  }
+  if(j.error) throw new Error(j.detail||j.error);
 
   let arr=null;
   if(Array.isArray(j))arr=j;
@@ -480,17 +474,16 @@ const baseOpts={
 
 function parseJST(timeStr){
   if(!timeStr) return Date.now();
+  const s=String(timeStr).trim();
 
-  const s = String(timeStr).trim();
-
-  const d1 = new Date(s);
+  const d1=new Date(s);
   if(!isNaN(d1.getTime())) return d1.getTime();
 
-  const isoLike = s.replace(" ", "T");
-  const d2 = new Date(isoLike);
+  const isoLike=s.replace(" ","T");
+  const d2=new Date(isoLike);
   if(!isNaN(d2.getTime())) return d2.getTime();
 
-  const d3 = new Date(isoLike + "Z");
+  const d3=new Date(isoLike+"Z");
   if(!isNaN(d3.getTime())) return d3.getTime();
 
   return Date.now();
@@ -753,6 +746,9 @@ async function update(){
 
   try{
     const candles=await fetchCandles(currentTF);
+    if(!candles || candles.length < 80){
+      throw new Error("candles不足");
+    }
 
     const times=candles.map(function(c){
       return fmtLabel(c.time,currentTF);
@@ -833,7 +829,11 @@ async function update(){
   }
 }
 
-function setActiveTF(tf){
+function applyTF(tf){
+  if(tf === currentTF){
+    return;
+  }
+
   currentTF=tf;
 
   const btns=el.pills?el.pills.querySelectorAll(".tf"):[];
@@ -845,20 +845,41 @@ function setActiveTF(tf){
     }
   });
 
-  update();
+  clearTimeout(tfSwitchTimer);
+  tfSwitchTimer=setTimeout(function(){
+    const now=Date.now();
+    const gap=now-lastTFUpdateAt;
+
+    if(gap<TF_SWITCH_MIN_GAP_MS){
+      clearTimeout(tfSwitchTimer);
+      tfSwitchTimer=setTimeout(function(){
+        lastTFUpdateAt=Date.now();
+        update();
+      }, TF_SWITCH_MIN_GAP_MS-gap);
+      return;
+    }
+
+    lastTFUpdateAt=now;
+    update();
+  }, TF_SWITCH_DEBOUNCE_MS);
 }
 
 if(el.pills){
   el.pills.addEventListener("click",function(ev){
     const t=ev.target;
     if(t&&t.classList.contains("tf")){
-      setActiveTF(t.getAttribute("data-tf"));
+      applyTF(t.getAttribute("data-tf"));
     }
   });
 }
 
-setActiveTF(currentTF);
+if(el.pills){
+  const active=el.pills.querySelector('.tf[data-tf="'+currentTF+'"]');
+  if(active) active.classList.add("active");
+}
+
 drawSession();
+update();
 
 setInterval(update,REFRESH_MS);
 setInterval(drawSession,60*1000);
