@@ -479,15 +479,21 @@ const baseOpts={
 };
 
 function parseJST(timeStr){
-  if(!timeStr)return Date.now();
+  if(!timeStr) return Date.now();
 
-  const s=String(timeStr).replace(" ","T");
+  const s = String(timeStr).trim();
 
-  if(s.indexOf("Z")>=0||/[+-]\d{2}:?\d{2}$/.test(s)){
-    return new Date(s).getTime();
-  }
+  const d1 = new Date(s);
+  if(!isNaN(d1.getTime())) return d1.getTime();
 
-  return new Date(s+"+09:00").getTime();
+  const isoLike = s.replace(" ", "T");
+  const d2 = new Date(isoLike);
+  if(!isNaN(d2.getTime())) return d2.getTime();
+
+  const d3 = new Date(isoLike + "Z");
+  if(!isNaN(d3.getTime())) return d3.getTime();
+
+  return Date.now();
 }
 
 function supRes(highs,lows,lastClose,tf){
