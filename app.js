@@ -1,4 +1,4 @@
-// USD/JPY ダッシュボード 安定復旧版 + API節約版 + タブ切替デバウンス
+// USD/JPY ダッシュボード 安定復旧版 + API節約版 + タブ切替デバウンス + エントリー通知
 const RATE_URL = "/api/rate";
 const REFRESH_MS = 10 * 60 * 1000;
 const STRENGTH_REFRESH_MS = 30 * 60 * 1000;
@@ -8,8 +8,12 @@ let lastStrengthFetch = 0;
 let cachedStrength = null;
 let tfSwitchTimer = null;
 let lastTFUpdateAt = 0;
+let lastSignalState = "";
+let lastSignalNotifyAt = 0;
+
 const TF_SWITCH_DEBOUNCE_MS = 800;
 const TF_SWITCH_MIN_GAP_MS = 3000;
+const SIGNAL_NOTIFY_COOLDOWN_MS = 5 * 60 * 1000;
 
 const TF_BARS_PER_DAY = { "5min":288, "1h":24, "4h":6, "1day":1 };
 
@@ -25,6 +29,21 @@ const el = {
   pills: $("intervalPills")
 };
 let priceChart, macdChart;
+
+function ensureNotificationPermission(){
+  if(!("Notification" in window)) return false;
+  if(Notification.permission === "granted") return true;
+  if(Notification.permission === "default"){
+    Notification.requestPermission().then(function(){});
+  }
+  return false;
+}
+
+function sendSignalNotification(title, body){
+  if(!("Notification" in window)) return;
+  if(Notification.permission !== "granted") return;
+  new Notification(title, { body: body });
+}
 
 function sma(a,p){
   const o=Array(a.length).fill(null);
@@ -347,6 +366,20 @@ function computeSignal(candles){
     poEl.style.background=po.color+"22";
     poEl.style.color=po.color;
     poEl.style.border="1px solid "+po.color+"66";
+  }
+
+  const isEntrySignal = action.indexOf("LONG") === 0 || action.indexOf("SHORT") === 0;
+  const now = Date.now();
+
+  if(isEntrySignal){
+    if(action !== lastSignalState || now - lastSignalNotifyAt > SIGNAL_NOTIFY_COOLDOWN_MS){
+      lastSignalState = action;
+      lastSignalNotifyAt = now;
+      sendSignalNotification(
+        "USD/JPY エントリーシグナル",
+        action + " / " + price.toFixed(3) + " / " + reason
+      );
+    }
   }
 }
 
@@ -877,6 +910,10 @@ if(el.pills){
   const active=el.pills.querySelector('.tf[data-tf="'+currentTF+'"]');
   if(active) active.classList.add("active");
 }
+
+document.addEventListener("click", function once(){
+  ensureNotificationPermission();
+}, { once: true });
 
 drawSession();
 update();
